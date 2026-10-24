@@ -25,6 +25,7 @@ const nextConfig = {
               "script-src 'self' 'unsafe-inline'",
               "connect-src 'self' https://cdn.jsdelivr.net",
               "font-src 'self' data:",
+              "frame-src https://maps.google.com https://www.google.com",
               "frame-ancestors 'self'",
             ].join('; '),
           },

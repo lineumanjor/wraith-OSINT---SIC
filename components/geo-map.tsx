@@ -1,10 +1,8 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { ExternalLink, MapPin } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
-
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
 
 export type MapPoint = {
   id: string
@@ -14,10 +12,18 @@ export type MapPoint = {
   tone?: 'primary' | 'accent' | 'warn'
 }
 
-const TONE_FILL: Record<NonNullable<MapPoint['tone']>, string> = {
-  primary: 'oklch(0.72 0.15 292)',
-  accent: 'oklch(0.78 0.13 195)',
-  warn: 'oklch(0.78 0.14 75)',
+const TONE_DOT: Record<NonNullable<MapPoint['tone']>, string> = {
+  primary: 'bg-[oklch(0.72_0.15_292)]',
+  accent: 'bg-[oklch(0.78_0.13_195)]',
+  warn: 'bg-[oklch(0.78_0.14_75)]',
+}
+
+function formatCoordinates([lng, lat]: [number, number]) {
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+}
+
+function embedSource([lng, lat]: [number, number]) {
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=13&hl=pt-PT&output=embed`
 }
 
 export function GeoMap({
@@ -31,116 +37,107 @@ export function GeoMap({
   emptyLabel?: string
   className?: string
 }) {
-  const [active, setActive] = useState<string | null>(null)
+  const valid = useMemo(
+    () =>
+      points.filter(
+        (point) => Number.isFinite(point.coordinates[0]) && Number.isFinite(point.coordinates[1]),
+      ),
+    [points],
+  )
 
-  const clusters = useMemo(() => {
-    const map = new Map<string, { key: string; coordinates: [number, number]; items: MapPoint[] }>()
-    for (const point of points) {
-      const [lng, lat] = point.coordinates
-      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
-      const key = `${Math.round(lat * 10) / 10}:${Math.round(lng * 10) / 10}`
-      const existing = map.get(key)
-      if (existing) existing.items.push(point)
-      else map.set(key, { key, coordinates: [lng, lat], items: [point] })
-    }
-    return [...map.values()]
-  }, [points])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const active = valid.find((point) => point.id === activeId) ?? valid[0] ?? null
 
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border bg-[oklch(0.155_0.016_285)]',
+        'overflow-hidden rounded-xl border border-border bg-card/40',
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-0 grid-field opacity-40" aria-hidden />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/[0.07] to-transparent"
-        aria-hidden
-      />
-
-      <ComposableMap
-        width={800}
-        height={400}
-        projection="geoEqualEarth"
-        projectionConfig={{ scale: 175, center: [0, 5] }}
-        className="relative w-full"
-        style={{ height: 'auto' }}
-      >
-        <Geographies geography={GEO_URL}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                strokeWidth={0.4}
-                className="fill-[oklch(0.34_0.028_288)] stroke-[oklch(0.46_0.035_288)] outline-none transition-colors hover:fill-[oklch(0.44_0.05_290)]"
-              />
-            ))
-          }
-        </Geographies>
-
-        {clusters.map((cluster) => {
-          const isActive = active === cluster.key
-          const tone = cluster.items[0]?.tone ?? 'primary'
-          const fill = TONE_FILL[tone]
-          const radius = Math.min(4 + cluster.items.length * 1.6, 12)
-          const label = cluster.items[0]?.label ?? ''
-
-          return (
-            <Marker
-              key={cluster.key}
-              coordinates={cluster.coordinates}
-              onMouseEnter={() => setActive(cluster.key)}
-              onMouseLeave={() => setActive(null)}
-            >
-              <circle r={radius + 6} fill={fill} opacity={isActive ? 0.28 : 0.14} className="animate-wraith-pulse" />
-              <circle r={radius} fill={fill} opacity={0.9} />
-              <circle r={radius * 0.4} fill="oklch(0.98 0.01 285)" />
-              {isActive && (
-                <g transform={`translate(0, ${-radius - 12})`}>
-                  <rect
-                    x={-70}
-                    y={-16}
-                    width={140}
-                    height={22}
-                    rx={4}
-                    fill="oklch(0.19 0.02 285)"
-                    stroke="oklch(0.72 0.15 292 / 40%)"
-                  />
-                  <text
-                    textAnchor="middle"
-                    y={-1}
-                    fill="oklch(0.95 0.006 285)"
-                    style={{ fontSize: 8, fontFamily: 'var(--font-geist-mono)' }}
-                  >
-                    {label.slice(0, 26)}
-                    {cluster.items.length > 1 ? ` · ${cluster.items.length}` : ''}
-                  </text>
-                </g>
-              )}
-            </Marker>
-          )
-        })}
-      </ComposableMap>
-
-      {clusters.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="rounded-md border border-border bg-background/80 px-3 py-1.5 font-mono text-[11px] tracking-wide text-muted-foreground">
-            {emptyLabel}
-          </p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
         <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
           {caption}
         </span>
         <span className="font-mono text-[10px] text-muted-foreground">
-          {clusters.length} {clusters.length === 1 ? 'ponto' : 'pontos'} · {points.length}{' '}
-          {points.length === 1 ? 'registo' : 'registos'}
+          {valid.length} {valid.length === 1 ? 'ponto' : 'pontos'} · Google Maps
         </span>
       </div>
+
+      <div className="flex flex-col md:flex-row">
+        <div className="relative min-h-[280px] flex-1 bg-[oklch(0.155_0.016_285)] md:min-h-[340px]">
+          {active ? (
+            <iframe
+              key={active.id}
+              title={`Mapa de ${active.label}`}
+              src={embedSource(active.coordinates)}
+              className="absolute inset-0 size-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="rounded-md border border-border bg-background/80 px-3 py-1.5 font-mono text-[11px] tracking-wide text-muted-foreground">
+                {emptyLabel}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {valid.length > 0 && (
+          <ul className="max-h-[340px] shrink-0 divide-y divide-border overflow-y-auto border-t border-border md:w-60 md:border-t-0 md:border-l">
+            {valid.map((point) => {
+              const isActive = active?.id === point.id
+              return (
+                <li key={point.id}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveId(point.id)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      'flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors',
+                      isActive ? 'bg-primary/10' : 'hover:bg-white/[0.03]',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-1 size-1.5 shrink-0 rounded-full',
+                        TONE_DOT[point.tone ?? 'primary'],
+                      )}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs text-foreground">{point.label}</span>
+                      <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">
+                        {formatCoordinates(point.coordinates)}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      {active && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+            <MapPin className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">{active.label}</span>
+          </span>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${active.coordinates[1]},${active.coordinates[0]}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-wide text-primary uppercase transition-colors hover:text-primary/80"
+          >
+            Abrir
+            <ExternalLink className="size-3" aria-hidden />
+          </a>
+        </div>
+      )}
     </div>
   )
 }
