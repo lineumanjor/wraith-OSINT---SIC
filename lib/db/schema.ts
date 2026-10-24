@@ -61,6 +61,32 @@ export const captures = pgTable('captures', {
   isBot: boolean('is_bot').default(false),
 })
 
+export const sandboxSessions = pgTable('sandbox_sessions', {
+  id: text('id').primaryKey(),
+  label: text('label'),
+  consentAt: timestamp('consent_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  locationSource: text('location_source').notNull().default('unavailable'),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  accuracy: doublePrecision('accuracy'),
+  city: text('city'),
+  region: text('region'),
+  country: text('country'),
+  countryCode: text('country_code'),
+  ip: text('ip'),
+  asn: text('asn'),
+  asOrg: text('as_org'),
+  timezone: text('timezone'),
+  platform: text('platform'),
+  browser: text('browser'),
+  os: text('os'),
+  deviceType: text('device_type'),
+  screen: text('screen'),
+  languages: text('languages'),
+  userAgent: text('user_agent'),
+})
+
 export const investigations = pgTable('investigations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -110,3 +136,4 @@ export type InvestigationRow = typeof investigations.$inferSelect
 export type EntityRow = typeof entities.$inferSelect
 export type FactRow = typeof facts.$inferSelect
 export type EntityLinkRow = typeof entityLinks.$inferSelect
+export type SandboxSessionRow = typeof sandboxSessions.$inferSelect

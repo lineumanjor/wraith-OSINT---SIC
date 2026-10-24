@@ -2,7 +2,16 @@
 
 import { LabNotice } from '@/components/lab-notice'
 import { cn } from '@/lib/utils'
-import { Cpu, Eye, FlaskConical, FolderSearch, Link2, Radar, SquareTerminal } from 'lucide-react'
+import {
+  Cpu,
+  Eye,
+  FlaskConical,
+  FolderSearch,
+  Link2,
+  Radar,
+  ShieldCheck,
+  SquareTerminal,
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -13,6 +22,7 @@ const NAV = [
   { href: '/forge', label: 'Link Forge', short: 'Forge', icon: Link2, code: '04' },
   { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '05' },
   { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '06' },
+  { href: '/sandbox', label: 'Simulador de Treino', short: 'Treino', icon: ShieldCheck, code: '07' },
 ]
 
 function isActive(pathname: string, href: string) {
