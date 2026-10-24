@@ -2,16 +2,22 @@
 
 import { LabNotice } from '@/components/lab-notice'
 import { cn } from '@/lib/utils'
-import { Cpu, Eye, FlaskConical, Link2, Radar } from 'lucide-react'
+import { Cpu, Eye, FlaskConical, FolderSearch, Link2, Radar, SquareTerminal } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
   { href: '/', label: 'Wraith Dashboard', short: 'Dashboard', icon: Radar, code: '01' },
-  { href: '/forge', label: 'Link Forge', short: 'Forge', icon: Link2, code: '02' },
-  { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '03' },
-  { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '04' },
+  { href: '/cases', label: 'Investigações', short: 'Dossiês', icon: FolderSearch, code: '02' },
+  { href: '/terminal', label: 'Spectre Terminal', short: 'Terminal', icon: SquareTerminal, code: '03' },
+  { href: '/forge', label: 'Link Forge', short: 'Forge', icon: Link2, code: '04' },
+  { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '05' },
+  { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '06' },
 ]
+
+function isActive(pathname: string, href: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
+}
 
 function WraithMark({ className }: { className?: string }) {
   return (
@@ -48,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-1 px-3 py-2" aria-label="Navegação principal">
           {NAV.map((item) => {
-            const active = pathname === item.href
+            const active = isActive(pathname, item.href)
             const Icon = item.icon
             return (
               <Link
@@ -117,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Navegação principal"
           >
             {NAV.map((item) => {
-              const active = pathname === item.href
+              const active = isActive(pathname, item.href)
               const Icon = item.icon
               return (
                 <Link

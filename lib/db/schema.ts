@@ -16,6 +16,7 @@ export const links = pgTable('links', {
   previewTitle: text('preview_title'),
   previewDescription: text('preview_description'),
   previewSource: text('preview_source'),
+  investigationId: text('investigation_id'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -60,5 +61,52 @@ export const captures = pgTable('captures', {
   isBot: boolean('is_bot').default(false),
 })
 
+export const investigations = pgTable('investigations', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('open'),
+  priority: text('priority').notNull().default('normal'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const entities = pgTable('entities', {
+  id: text('id').primaryKey(),
+  investigationId: text('investigation_id').notNull(),
+  kind: text('kind').notNull(),
+  label: text('label').notNull(),
+  value: text('value'),
+  notes: text('notes'),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  confidence: integer('confidence').notNull().default(50),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const facts = pgTable('facts', {
+  id: text('id').primaryKey(),
+  investigationId: text('investigation_id').notNull(),
+  title: text('title').notNull(),
+  detail: text('detail'),
+  source: text('source'),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const entityLinks = pgTable('entity_links', {
+  id: text('id').primaryKey(),
+  investigationId: text('investigation_id').notNull(),
+  fromEntity: text('from_entity').notNull(),
+  toEntity: text('to_entity').notNull(),
+  relation: text('relation').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type LinkRow = typeof links.$inferSelect
 export type CaptureRow = typeof captures.$inferSelect
+export type InvestigationRow = typeof investigations.$inferSelect
+export type EntityRow = typeof entities.$inferSelect
+export type FactRow = typeof facts.$inferSelect
+export type EntityLinkRow = typeof entityLinks.$inferSelect

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Wraith OSINT — Laboratório de Inteligência de Redirecionamento',
+  title: 'Wraith OSINT — Plataforma de Investigação e Correlação',
   description:
-    'Ambiente de laboratório para estudo de redirecionamento com preview dinâmico, fingerprinting de dispositivo e geolocalização de rede. Uso exclusivamente educacional e simulado.',
+    'Dossiês de investigação com entidades, factos datados e vínculos, enumeração de perfis públicos, consultas DNS e georreferenciação. Terminal OSINT integrado.',
   generator: 'v0.app',
   robots: { index: false, follow: false },
 }
