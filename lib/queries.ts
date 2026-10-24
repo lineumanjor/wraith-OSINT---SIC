@@ -49,6 +49,7 @@ export async function getLinks(): Promise<LinkSummary[]> {
     label: link.label,
     destination: link.destination,
     slug: link.slug,
+    host: link.host,
     redirectMode: link.redirectMode as RedirectMode,
     previewStyle: link.previewStyle as PreviewStyle,
     previewTitle: link.previewTitle,

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { links } from '@/lib/db/schema'
+import { domains, links } from '@/lib/db/schema'
 import { getLinks } from '@/lib/queries'
 import type { PreviewStyle, RedirectMode } from '@/lib/spectre/types'
 import { eq } from 'drizzle-orm'
@@ -75,9 +75,22 @@ export async function POST(request: Request) {
     ? (body.redirectMode as RedirectMode)
     : 'preview'
   const { slug, error: slugError } = parseSlug(body.slug)
+  const requestedHost = clean(body.host, 253)?.toLowerCase() ?? null
 
   if (slugError) {
     return Response.json({ ok: false, error: slugError }, { status: 400 })
+  }
+
+  if (requestedHost) {
+    const [known] = await db
+      .select({ id: domains.id })
+      .from(domains)
+      .where(eq(domains.hostname, requestedHost))
+      .limit(1)
+
+    if (!known) {
+      return Response.json({ ok: false, error: 'unknown_host' }, { status: 400 })
+    }
   }
 
   if (!label || !destination) {
@@ -116,6 +129,7 @@ export async function POST(request: Request) {
       label,
       destination: normalized.toString(),
       slug,
+      host: requestedHost,
       redirectMode: mode,
       previewStyle: style,
       previewTitle: clean(body.previewTitle, 160),

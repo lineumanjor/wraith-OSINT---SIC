@@ -17,6 +17,7 @@ export const links = pgTable('links', {
   previewDescription: text('preview_description'),
   previewSource: text('preview_source'),
   slug: text('slug'),
+  host: text('host'),
   redirectMode: text('redirect_mode').notNull().default('preview'),
   investigationId: text('investigation_id'),
   active: boolean('active').notNull().default(true),

@@ -55,6 +55,7 @@ export type LinkSummary = {
   label: string
   destination: string
   slug: string | null
+  host: string | null
   redirectMode: RedirectMode
   previewStyle: PreviewStyle
   previewTitle: string | null

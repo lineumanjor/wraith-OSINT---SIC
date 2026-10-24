@@ -1,7 +1,8 @@
 'use client'
 
+import { DomainPicker } from '@/components/forge/domain-picker'
 import { GhostPreview, PREVIEW_STYLES } from '@/components/ghost-preview'
-import type { DomainSummary, LinkSummary, PreviewStyle, RedirectMode } from '@/lib/spectre/types'
+import type { LinkSummary, PreviewStyle, RedirectMode } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
 import { Check, Copy, Eye, Globe, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -29,8 +30,8 @@ const DEFAULTS: Record<PreviewStyle, { title: string; description: string; sourc
 
 export function LinkForge() {
   const { data, mutate } = useSWR<{ links: LinkSummary[] }>('/api/links', fetcher)
-  const { data: domainData } = useSWR<{ domains: DomainSummary[] }>('/api/domains', fetcher)
   const [alias, setAlias] = useState('')
+  const [host, setHost] = useState<string | null>(null)
   const [mode, setMode] = useState<RedirectMode>('preview')
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
@@ -74,6 +75,7 @@ export function LinkForge() {
           label,
           destination,
           slug: alias,
+          host,
           redirectMode: mode,
           previewStyle: style,
           previewTitle: title,
@@ -93,7 +95,9 @@ export function LinkForge() {
                 ? 'Este alias é reservado pelo sistema. Escolhe outro.'
                 : payload.error === 'invalid_slug'
                   ? 'Alias inválido. Usa letras minúsculas, números e hífen, com 2 a 63 caracteres.'
-                  : 'Não foi possível criar o link. Verifique os campos.',
+                  : payload.error === 'unknown_host'
+                    ? 'O domínio escolhido já não está registado. Escolhe outro.'
+                    : 'Não foi possível criar o link. Verifique os campos.',
         )
         return
       }
@@ -125,9 +129,12 @@ export function LinkForge() {
     setOrigin(window.location.origin)
   }, [])
 
-  const customHost = domainData?.domains.find((domain) => domain.verified)?.hostname
-  const baseUrl = customHost ? `https://${customHost}` : origin
-  const createdUrl = created ? `${baseUrl}/l/${created.slug ?? created.id}` : ''
+  const fallbackHost = origin.replace(/^https?:\/\//, '')
+  const baseUrl = host ? `https://${host}` : origin
+  const shareUrl = `${baseUrl}/l/${alias.trim().toLowerCase() || '…'}`
+  const createdUrl = created
+    ? `${created.host ? `https://${created.host}` : origin}/l/${created.slug ?? created.id}`
+    : ''
   const links = data?.links ?? []
 
   return (
@@ -258,6 +265,8 @@ export function LinkForge() {
               </fieldset>
             </div>
 
+            <DomainPicker value={host} onChange={setHost} fallbackHost={fallbackHost} />
+
             <fieldset>
               <legend className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
                 Estilo do Ghost Preview
@@ -358,9 +367,35 @@ export function LinkForge() {
       <div className="space-y-4 lg:col-span-2">
         <div className="rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-medium text-foreground">Pré-visualização</h2>
+            <h2 className="text-sm font-medium text-foreground">Link que vais partilhar</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Como o cartão aparece antes do clique.
+              É este o endereço que recebe quem clicar.
+            </p>
+          </div>
+          <div className="p-4">
+            <p className="font-mono text-[13px] leading-relaxed break-all text-foreground">
+              {shareUrl}
+            </p>
+            <button
+              type="button"
+              onClick={() => copy(shareUrl)}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:border-primary/40"
+            >
+              {copied === shareUrl ? (
+                <Check className="size-3" aria-hidden />
+              ) : (
+                <Copy className="size-3" aria-hidden />
+              )}
+              copiar link
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-sm font-medium text-foreground">Cartão antes do clique</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Como o link aparece quando é partilhado.
             </p>
           </div>
           <div className="grid-field flex min-h-56 items-center justify-center p-5">
