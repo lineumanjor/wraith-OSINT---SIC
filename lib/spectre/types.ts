@@ -41,10 +41,21 @@ export type Capture = {
   isBot: boolean | null
 }
 
+export type RedirectMode = 'preview' | 'direct'
+
+export type DomainSummary = {
+  id: string
+  hostname: string
+  verified: boolean
+  createdAt: string
+}
+
 export type LinkSummary = {
   id: string
   label: string
   destination: string
+  slug: string | null
+  redirectMode: RedirectMode
   previewStyle: PreviewStyle
   previewTitle: string | null
   previewDescription: string | null

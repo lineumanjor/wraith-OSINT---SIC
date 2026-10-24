@@ -1,13 +1,44 @@
 import { db } from '@/lib/db'
 import { links } from '@/lib/db/schema'
 import { getLinks } from '@/lib/queries'
-import type { PreviewStyle } from '@/lib/spectre/types'
+import type { PreviewStyle, RedirectMode } from '@/lib/spectre/types'
 import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
 const STYLES: PreviewStyle[] = ['messaging', 'cloud', 'marketplace']
+const MODES: RedirectMode[] = ['preview', 'direct']
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789'
+
+const RESERVED_SLUGS = new Set([
+  'api',
+  'l',
+  'cases',
+  'forge',
+  'preview',
+  'engine',
+  'terminal',
+  'sandbox',
+  'domains',
+  'settings',
+  'admin',
+  'login',
+  '_next',
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+])
+
+function parseSlug(value: unknown): { slug: string | null; error?: string } {
+  if (value === undefined || value === null || value === '') return { slug: null }
+  if (typeof value !== 'string') return { slug: null, error: 'invalid_slug' }
+
+  const slug = value.trim().toLowerCase()
+  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return { slug: null, error: 'invalid_slug' }
+  if (RESERVED_SLUGS.has(slug)) return { slug: null, error: 'reserved_slug' }
+
+  return { slug }
+}
 
 function makeSlug(length = 8) {
   let out = ''
@@ -40,6 +71,14 @@ export async function POST(request: Request) {
   const style = STYLES.includes(body.previewStyle as PreviewStyle)
     ? (body.previewStyle as PreviewStyle)
     : 'messaging'
+  const mode = MODES.includes(body.redirectMode as RedirectMode)
+    ? (body.redirectMode as RedirectMode)
+    : 'preview'
+  const { slug, error: slugError } = parseSlug(body.slug)
+
+  if (slugError) {
+    return Response.json({ ok: false, error: slugError }, { status: 400 })
+  }
 
   if (!label || !destination) {
     return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 })
@@ -56,6 +95,18 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'invalid_protocol' }, { status: 400 })
   }
 
+  if (slug) {
+    const [taken] = await db
+      .select({ id: links.id })
+      .from(links)
+      .where(eq(links.slug, slug))
+      .limit(1)
+
+    if (taken) {
+      return Response.json({ ok: false, error: 'slug_taken' }, { status: 409 })
+    }
+  }
+
   const id = makeSlug()
 
   const [created] = await db
@@ -64,6 +115,8 @@ export async function POST(request: Request) {
       id,
       label,
       destination: normalized.toString(),
+      slug,
+      redirectMode: mode,
       previewStyle: style,
       previewTitle: clean(body.previewTitle, 160),
       previewDescription: clean(body.previewDescription, 320),

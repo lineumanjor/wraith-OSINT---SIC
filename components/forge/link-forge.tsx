@@ -1,13 +1,13 @@
 'use client'
 
 import { GhostPreview, PREVIEW_STYLES } from '@/components/ghost-preview'
-import type { LinkSummary, PreviewStyle } from '@/lib/spectre/types'
+import type { DomainSummary, LinkSummary, PreviewStyle, RedirectMode } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
-import { Check, Copy, Link2, Loader2, Plus, Power } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Copy, Eye, Globe, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json() as Promise<{ links: LinkSummary[] }>)
+const fetcher = <T,>(url: string) => fetch(url).then((res) => res.json() as Promise<T>)
 
 const DEFAULTS: Record<PreviewStyle, { title: string; description: string; source: string }> = {
   messaging: {
@@ -29,6 +29,9 @@ const DEFAULTS: Record<PreviewStyle, { title: string; description: string; sourc
 
 export function LinkForge() {
   const { data, mutate } = useSWR<{ links: LinkSummary[] }>('/api/links', fetcher)
+  const { data: domainData } = useSWR<{ domains: DomainSummary[] }>('/api/domains', fetcher)
+  const [alias, setAlias] = useState('')
+  const [mode, setMode] = useState<RedirectMode>('preview')
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
   const [style, setStyle] = useState<PreviewStyle>('messaging')
@@ -70,6 +73,8 @@ export function LinkForge() {
         body: JSON.stringify({
           label,
           destination,
+          slug: alias,
+          redirectMode: mode,
           previewStyle: style,
           previewTitle: title,
           previewDescription: description,
@@ -82,7 +87,13 @@ export function LinkForge() {
         setError(
           payload.error === 'invalid_destination'
             ? 'Destino inválido. Use uma URL completa com http:// ou https://.'
-            : 'Não foi possível criar o link. Verifique os campos.',
+            : payload.error === 'slug_taken'
+              ? 'Este alias já está em uso. Escolhe outro.'
+              : payload.error === 'reserved_slug'
+                ? 'Este alias é reservado pelo sistema. Escolhe outro.'
+                : payload.error === 'invalid_slug'
+                  ? 'Alias inválido. Usa letras minúsculas, números e hífen, com 2 a 63 caracteres.'
+                  : 'Não foi possível criar o link. Verifique os campos.',
         )
         return
       }
@@ -90,6 +101,7 @@ export function LinkForge() {
       setCreated({ ...payload.link!, hits: 0 })
       setLabel('')
       setDestination('')
+      setAlias('')
       await mutate()
     } catch {
       setError('Falha de rede ao criar o link.')
@@ -107,7 +119,15 @@ export function LinkForge() {
     await mutate()
   }
 
-  const origin = typeof window === 'undefined' ? '' : window.location.origin
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
+
+  const customHost = domainData?.domains.find((domain) => domain.verified)?.hostname
+  const baseUrl = customHost ? `https://${customHost}` : origin
+  const createdUrl = created ? `${baseUrl}/l/${created.slug ?? created.id}` : ''
   const links = data?.links ?? []
 
   return (
@@ -150,6 +170,92 @@ export function LinkForge() {
                   className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
                 />
               </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Alias personalizado
+                </span>
+                <div className="mt-1.5 flex items-stretch overflow-hidden rounded-lg border border-input bg-background/60 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20">
+                  <span className="flex items-center border-r border-border px-2.5 font-mono text-[11px] text-muted-foreground">
+                    /l/
+                  </span>
+                  <input
+                    value={alias}
+                    onChange={(e) => setAlias(e.target.value)}
+                    maxLength={63}
+                    placeholder="promocao-xyz"
+                    aria-label="Alias personalizado"
+                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                  />
+                </div>
+                <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground/70">
+                  {baseUrl || 'wraith.link'}/l/{alias.trim().toLowerCase() || '…'}
+                </span>
+              </label>
+
+              <fieldset>
+                <legend className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Modo de redirecionamento
+                </legend>
+                <div className="mt-1.5 grid gap-2">
+                  {(
+                    [
+                      {
+                        value: 'preview' as RedirectMode,
+                        label: 'Ghost Preview',
+                        hint: 'Cartão intermédio e registo do perfil técnico.',
+                        icon: Eye,
+                      },
+                      {
+                        value: 'direct' as RedirectMode,
+                        label: 'Direto',
+                        hint: '307 imediato, sem página intermédia e sem captura.',
+                        icon: Zap,
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const active = mode === option.value
+                    const Icon = option.icon
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setMode(option.value)}
+                        aria-pressed={active}
+                        className={cn(
+                          'flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors',
+                          active
+                            ? 'border-primary/60 bg-primary/10'
+                            : 'border-border bg-background/40 hover:border-primary/30',
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            'mt-0.5 size-3.5 shrink-0',
+                            active ? 'text-primary' : 'text-muted-foreground/60',
+                          )}
+                          aria-hidden
+                        />
+                        <span className="min-w-0">
+                          <span
+                            className={cn(
+                              'block text-xs font-medium',
+                              active ? 'text-foreground' : 'text-muted-foreground',
+                            )}
+                          >
+                            {option.label}
+                          </span>
+                          <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground/70">
+                            {option.hint}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
             </div>
 
             <fieldset>
@@ -273,16 +379,14 @@ export function LinkForge() {
               <Check className="size-3" aria-hidden />
               Link gerado
             </p>
-            <p className="mt-2 font-mono text-[11px] break-all text-foreground/90">
-              {origin}/l/{created.id}
-            </p>
+            <p className="mt-2 font-mono text-[11px] break-all text-foreground/90">{createdUrl}</p>
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => copy(`${origin}/l/${created.id}`)}
+                onClick={() => copy(createdUrl)}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:border-primary/40"
               >
-                {copied === `${origin}/l/${created.id}` ? (
+                {copied === createdUrl ? (
                   <Check className="size-3" aria-hidden />
                 ) : (
                   <Copy className="size-3" aria-hidden />
@@ -290,7 +394,7 @@ export function LinkForge() {
                 copiar
               </button>
               <a
-                href={`/l/${created.id}`}
+                href={`/l/${created.slug ?? created.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:border-primary/40"
@@ -334,19 +438,29 @@ export function LinkForge() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-foreground">{link.label}</p>
                   <p className="truncate font-mono text-[10px] text-muted-foreground">
-                    /l/{link.id} → {link.destination}
+                    /l/{link.slug ?? link.id} → {link.destination}
                   </p>
                 </div>
+                <span
+                  className={cn(
+                    'rounded-full border px-2 py-0.5 font-mono text-[10px]',
+                    link.redirectMode === 'direct'
+                      ? 'border-primary/40 text-primary'
+                      : 'border-border text-muted-foreground',
+                  )}
+                >
+                  {link.redirectMode === 'direct' ? 'direto' : 'preview'}
+                </span>
                 <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                   {link.hits} hits
                 </span>
                 <button
                   type="button"
-                  onClick={() => copy(`${origin}/l/${link.id}`)}
+                  onClick={() => copy(`${baseUrl}/l/${link.slug ?? link.id}`)}
                   className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                   aria-label={`Copiar link ${link.label}`}
                 >
-                  {copied === `${origin}/l/${link.id}` ? (
+                  {copied === `${baseUrl}/l/${link.slug ?? link.id}` ? (
                     <Check className="size-3.5" aria-hidden />
                   ) : (
                     <Copy className="size-3.5" aria-hidden />

@@ -1,7 +1,15 @@
 import { db } from '@/lib/db'
-import { captures, links } from '@/lib/db/schema'
-import type { Capture, DashboardData, DashboardStats, LinkSummary, PreviewStyle } from '@/lib/spectre/types'
-import { desc, eq, sql } from 'drizzle-orm'
+import { captures, domains, links } from '@/lib/db/schema'
+import type {
+  Capture,
+  DashboardData,
+  DashboardStats,
+  DomainSummary,
+  LinkSummary,
+  PreviewStyle,
+  RedirectMode,
+} from '@/lib/spectre/types'
+import { desc, eq, or, sql } from 'drizzle-orm'
 
 function serializeCapture(
   row: typeof captures.$inferSelect,
@@ -40,6 +48,8 @@ export async function getLinks(): Promise<LinkSummary[]> {
     id: link.id,
     label: link.label,
     destination: link.destination,
+    slug: link.slug,
+    redirectMode: link.redirectMode as RedirectMode,
     previewStyle: link.previewStyle as PreviewStyle,
     previewTitle: link.previewTitle,
     previewDescription: link.previewDescription,
@@ -50,9 +60,23 @@ export async function getLinks(): Promise<LinkSummary[]> {
   }))
 }
 
-export async function getLink(id: string) {
-  const [row] = await db.select().from(links).where(eq(links.id, id)).limit(1)
+export async function getLink(slugOrId: string) {
+  const [row] = await db
+    .select()
+    .from(links)
+    .where(or(eq(links.slug, slugOrId), eq(links.id, slugOrId)))
+    .limit(1)
   return row ?? null
+}
+
+export async function getDomains(): Promise<DomainSummary[]> {
+  const rows = await db.select().from(domains).orderBy(desc(domains.createdAt))
+  return rows.map((row) => ({
+    id: row.id,
+    hostname: row.hostname,
+    verified: row.verified,
+    createdAt: row.createdAt.toISOString(),
+  }))
 }
 
 function buildStats(all: Capture[], linkList: LinkSummary[]): DashboardStats {

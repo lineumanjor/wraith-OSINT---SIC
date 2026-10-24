@@ -16,8 +16,17 @@ export const links = pgTable('links', {
   previewTitle: text('preview_title'),
   previewDescription: text('preview_description'),
   previewSource: text('preview_source'),
+  slug: text('slug'),
+  redirectMode: text('redirect_mode').notNull().default('preview'),
   investigationId: text('investigation_id'),
   active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const domains = pgTable('domains', {
+  id: text('id').primaryKey(),
+  hostname: text('hostname').notNull().unique(),
+  verified: boolean('verified').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

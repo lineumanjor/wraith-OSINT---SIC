@@ -7,6 +7,7 @@ import {
   Eye,
   FlaskConical,
   FolderSearch,
+  Globe,
   Link2,
   Radar,
   ShieldCheck,
@@ -23,6 +24,7 @@ const NAV = [
   { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '05' },
   { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '06' },
   { href: '/sandbox', label: 'Simulador de Treino', short: 'Treino', icon: ShieldCheck, code: '07' },
+  { href: '/domains', label: 'Domínios', short: 'Domínios', icon: Globe, code: '08' },
 ]
 
 function isActive(pathname: string, href: string) {
