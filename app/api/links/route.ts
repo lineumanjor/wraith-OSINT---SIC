@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     : 'messaging'
   const mode = MODES.includes(body.redirectMode as RedirectMode)
     ? (body.redirectMode as RedirectMode)
-    : 'preview'
+    : 'direct'
   const { slug, error: slugError } = parseSlug(body.slug)
   const requestedHost = clean(body.host, 253)?.toLowerCase() ?? null
 

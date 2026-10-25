@@ -20,9 +20,9 @@ export function LabNotice({ variant = 'banner' }: { variant?: 'banner' | 'inline
           Ambiente de laboratório
         </span>
         <span className="mx-2 text-border">|</span>
-        Plataforma de estudo e treinamento. O redirecionamento é declarado ao visitante, os
-        previews são genéricos e não imitam marcas de terceiros. Use apenas com dados sintéticos
-        ou com consentimento explícito.
+        Plataforma de estudo e treinamento. O redirecionamento é imediato e a telemetria é
+        registada sem aviso ao visitante — usa apenas em ambiente controlado, com dados
+        sintéticos ou com base legal e consentimento documentado.
       </p>
     </div>
   )

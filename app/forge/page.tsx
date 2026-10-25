@@ -16,8 +16,8 @@ export default function Page() {
           Link Forge
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Gere links de redirecionamento com o cartão de preview escolhido. O destino só é
-          revelado depois que o Spectre Engine registra o perfil técnico do acesso.
+          Gere links de redirecionamento imediato. O Spectre Engine registra a telemetria no
+          servidor e o visitante segue direto para o destino, sem página intermédia.
         </p>
 
         <div className="mt-6">

@@ -31,6 +31,11 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // Os links de rastreio não devem revelar o endereço de origem ao destino.
+        source: '/l/:path*',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
     ]
   },
 }

@@ -2,9 +2,9 @@
 
 import { DomainPicker } from '@/components/forge/domain-picker'
 import { GhostPreview, PREVIEW_STYLES } from '@/components/ghost-preview'
-import type { LinkSummary, PreviewStyle, RedirectMode } from '@/lib/spectre/types'
+import type { LinkSummary, PreviewStyle } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
-import { Check, Copy, Eye, Globe, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
+import { Check, Copy, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
@@ -32,7 +32,6 @@ export function LinkForge() {
   const { data, mutate } = useSWR<{ links: LinkSummary[] }>('/api/links', fetcher)
   const [alias, setAlias] = useState('')
   const [host, setHost] = useState<string | null>(null)
-  const [mode, setMode] = useState<RedirectMode>('preview')
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
   const [style, setStyle] = useState<PreviewStyle>('messaging')
@@ -76,7 +75,6 @@ export function LinkForge() {
           destination,
           slug: alias,
           host,
-          redirectMode: mode,
           previewStyle: style,
           previewTitle: title,
           previewDescription: description,
@@ -144,7 +142,7 @@ export function LinkForge() {
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-medium text-foreground">Parâmetros do link</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              O destino só é revelado após a captura do perfil técnico.
+              O clique salta direto para o destino. A captura corre no servidor.
             </p>
           </div>
 
@@ -202,67 +200,21 @@ export function LinkForge() {
                 </span>
               </label>
 
-              <fieldset>
-                <legend className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Modo de redirecionamento
-                </legend>
-                <div className="mt-1.5 grid gap-2">
-                  {(
-                    [
-                      {
-                        value: 'preview' as RedirectMode,
-                        label: 'Ghost Preview',
-                        hint: 'Cartão intermédio e registo do perfil técnico.',
-                        icon: Eye,
-                      },
-                      {
-                        value: 'direct' as RedirectMode,
-                        label: 'Direto',
-                        hint: '307 imediato, sem página intermédia e sem captura.',
-                        icon: Zap,
-                      },
-                    ] as const
-                  ).map((option) => {
-                    const active = mode === option.value
-                    const Icon = option.icon
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setMode(option.value)}
-                        aria-pressed={active}
-                        className={cn(
-                          'flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors',
-                          active
-                            ? 'border-primary/60 bg-primary/10'
-                            : 'border-border bg-background/40 hover:border-primary/30',
-                        )}
-                      >
-                        <Icon
-                          className={cn(
-                            'mt-0.5 size-3.5 shrink-0',
-                            active ? 'text-primary' : 'text-muted-foreground/60',
-                          )}
-                          aria-hidden
-                        />
-                        <span className="min-w-0">
-                          <span
-                            className={cn(
-                              'block text-xs font-medium',
-                              active ? 'text-foreground' : 'text-muted-foreground',
-                            )}
-                          >
-                            {option.label}
-                          </span>
-                          <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground/70">
-                            {option.hint}
-                          </span>
-                        </span>
-                      </button>
-                    )
-                  })}
+              <div>
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Redirecionamento
+                </span>
+                <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] p-2.5">
+                  <Zap className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-medium text-foreground">Imediato</span>
+                    <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground/70">
+                      O clique salta direto para o destino. A telemetria é registada no servidor
+                      antes do salto, sem página intermédia.
+                    </span>
+                  </span>
                 </div>
-              </fieldset>
+              </div>
             </div>
 
             <DomainPicker value={host} onChange={setHost} fallbackHost={fallbackHost} />
@@ -476,16 +428,6 @@ export function LinkForge() {
                     /l/{link.slug ?? link.id} → {link.destination}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    'rounded-full border px-2 py-0.5 font-mono text-[10px]',
-                    link.redirectMode === 'direct'
-                      ? 'border-primary/40 text-primary'
-                      : 'border-border text-muted-foreground',
-                  )}
-                >
-                  {link.redirectMode === 'direct' ? 'direto' : 'preview'}
-                </span>
                 <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                   {link.hits} hits
                 </span>
