@@ -1,6 +1,5 @@
 'use client'
 
-import { LabNotice } from '@/components/lab-notice'
 import { cn } from '@/lib/utils'
 import {
   Cpu,
@@ -155,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </header>
 
-        <LabNotice />
+
 
         <main className="flex-1">{children}</main>
       </div>
