@@ -39,6 +39,7 @@ export const captures = pgTable('captures', {
   ip: text('ip'),
   asn: text('asn'),
   asOrg: text('as_org'),
+  operator: text('operator'),
   country: text('country'),
   countryCode: text('country_code'),
   region: text('region'),

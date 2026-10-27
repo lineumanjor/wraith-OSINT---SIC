@@ -99,6 +99,7 @@ export async function enrichCaptureGeo(captureId: number, ip: string | null) {
     .set({
       asn: geo.asn,
       asOrg: geo.asOrg,
+      operator: geo.operator,
       country: geo.country,
       countryCode: geo.countryCode,
       region: geo.region,

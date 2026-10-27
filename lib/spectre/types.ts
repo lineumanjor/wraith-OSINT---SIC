@@ -9,6 +9,7 @@ export type Capture = {
   ip: string | null
   asn: string | null
   asOrg: string | null
+  operator: string | null
   country: string | null
   countryCode: string | null
   region: string | null

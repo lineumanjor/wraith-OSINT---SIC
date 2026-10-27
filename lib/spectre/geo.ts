@@ -2,6 +2,7 @@ export type GeoInfo = {
   ip: string | null
   asn: string | null
   asOrg: string | null
+  operator: string | null
   country: string | null
   countryCode: string | null
   region: string | null
@@ -13,6 +14,7 @@ export type GeoInfo = {
 const EMPTY: Omit<GeoInfo, 'ip'> = {
   asn: null,
   asOrg: null,
+  operator: null,
   country: null,
   countryCode: null,
   region: null,
@@ -72,7 +74,8 @@ export async function lookupIp(ip: string | null): Promise<GeoInfo> {
     return {
       ip,
       asn: data.connection?.asn ? `AS${data.connection.asn}` : null,
-      asOrg: data.connection?.org ?? data.connection?.isp ?? null,
+      asOrg: data.connection?.org ?? null,
+      operator: data.connection?.isp ?? data.connection?.org ?? null,
       country: data.country ?? null,
       countryCode: data.country_code ?? null,
       region: data.region ?? null,
