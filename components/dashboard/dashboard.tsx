@@ -3,7 +3,7 @@
 import { CaptureDetail } from '@/components/dashboard/capture-detail'
 import { CaptureFeed } from '@/components/dashboard/capture-feed'
 import { StatGrid } from '@/components/dashboard/stat-grid'
-import { WorldMap } from '@/components/world-map'
+import { GeoMap, type MapPoint } from '@/components/geo-map'
 import type { Capture, DashboardData } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
 import { RefreshCw } from 'lucide-react'
@@ -22,6 +22,15 @@ export function Dashboard({ initial }: { initial: DashboardData }) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const payload = data ?? initial
   const selected = payload.captures.find((c) => c.id === selectedId) ?? null
+  const mapPoints: MapPoint[] = payload.captures
+    .filter((capture) => capture.latitude != null && capture.longitude != null)
+    .map((capture) => ({
+      id: String(capture.id),
+      label: capture.operator ?? capture.city ?? capture.ip ?? `Captura #${capture.id}`,
+      detail: [capture.city, capture.country, capture.operator].filter(Boolean).join(' · '),
+      coordinates: [capture.longitude as number, capture.latitude as number],
+      tone: capture.isBot ? 'warn' : 'primary',
+    }))
 
   function handleSelect(capture: Capture) {
     setSelectedId((current) => (current === capture.id ? null : capture.id))
@@ -63,7 +72,11 @@ export function Dashboard({ initial }: { initial: DashboardData }) {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <WorldMap captures={payload.captures} />
+          <GeoMap
+            points={mapPoints}
+            caption="Localizações reais das capturas"
+            emptyLabel="sem coordenadas de rede registadas"
+          />
         </div>
         <div className="lg:col-span-2">
           <CaptureDetail capture={selected} />

@@ -87,7 +87,8 @@ export function CaptureDetail({ capture }: { capture: Capture | null }) {
         <Section title="Rede e geolocalização" icon={Globe2}>
           <Field label="IP" value={capture.ip} />
           <Field label="ASN" value={capture.asn} />
-          <Field label="Operadora / AS" value={capture.asOrg} />
+          <Field label="Operadora" value={capture.operator ?? capture.asOrg} />
+          <Field label="Organização AS" value={capture.asOrg} />
           <Field label="País" value={capture.country ? `${flagEmoji(capture.countryCode)} ${capture.country}` : null} />
           <Field label="Região" value={capture.region} />
           <Field label="Cidade" value={capture.city} />
