@@ -1,8 +1,7 @@
 'use client'
 
 import { DomainPicker } from '@/components/forge/domain-picker'
-import { GhostPreview, PREVIEW_STYLES } from '@/components/ghost-preview'
-import type { LinkSummary, PreviewStyle } from '@/lib/spectre/types'
+import type { LinkSummary } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
 import { Check, Copy, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -10,45 +9,16 @@ import useSWR from 'swr'
 
 const fetcher = <T,>(url: string) => fetch(url).then((res) => res.json() as Promise<T>)
 
-const DEFAULTS: Record<PreviewStyle, { title: string; description: string; source: string }> = {
-  messaging: {
-    title: 'Ficha cadastral — lote 04',
-    description: 'Documento compartilhado para conferência. Toque para abrir.',
-    source: 'arquivos.interno-lab.net',
-  },
-  cloud: {
-    title: 'contrato-fornecimento-2026.pdf',
-    description: 'PDF · 1,8 MB · compartilhado com você',
-    source: 'drive.interno-lab.net',
-  },
-  marketplace: {
-    title: 'Componente usinado em alumínio 6061 — sob medida',
-    description: 'Pedido mínimo 500 unidades',
-    source: 'supply.interno-lab.net',
-  },
-}
-
 export function LinkForge() {
   const { data, mutate } = useSWR<{ links: LinkSummary[] }>('/api/links', fetcher)
   const [alias, setAlias] = useState('')
   const [host, setHost] = useState<string | null>(null)
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
-  const [style, setStyle] = useState<PreviewStyle>('messaging')
-  const [title, setTitle] = useState(DEFAULTS.messaging.title)
-  const [description, setDescription] = useState(DEFAULTS.messaging.description)
-  const [source, setSource] = useState(DEFAULTS.messaging.source)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<LinkSummary | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
-
-  function changeStyle(next: PreviewStyle) {
-    setStyle(next)
-    setTitle(DEFAULTS[next].title)
-    setDescription(DEFAULTS[next].description)
-    setSource(DEFAULTS[next].source)
-  }
 
   async function copy(value: string) {
     try {
@@ -75,10 +45,6 @@ export function LinkForge() {
           destination,
           slug: alias,
           host,
-          previewStyle: style,
-          previewTitle: title,
-          previewDescription: description,
-          previewSource: source,
         }),
       })
 
@@ -219,80 +185,6 @@ export function LinkForge() {
 
             <DomainPicker value={host} onChange={setHost} fallbackHost={fallbackHost} />
 
-            <fieldset>
-              <legend className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                Estilo do Ghost Preview
-              </legend>
-              <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
-                {PREVIEW_STYLES.map((option) => {
-                  const active = style === option.value
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => changeStyle(option.value)}
-                      aria-pressed={active}
-                      className={cn(
-                        'rounded-lg border p-2.5 text-left transition-colors',
-                        active
-                          ? 'border-primary/60 bg-primary/10'
-                          : 'border-border bg-background/40 hover:border-primary/30',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'block text-xs font-medium',
-                          active ? 'text-foreground' : 'text-muted-foreground',
-                        )}
-                      >
-                        {option.label}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground/70">
-                        {option.hint}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </fieldset>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Título do preview
-                </span>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  maxLength={160}
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                />
-              </label>
-
-              <label className="block">
-                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Descrição
-                </span>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={320}
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                />
-              </label>
-
-              <label className="block">
-                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-                  Domínio exibido
-                </span>
-                <input
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  maxLength={120}
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-xs text-foreground focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                />
-              </label>
-            </div>
 
             {error && (
               <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -340,23 +232,6 @@ export function LinkForge() {
               )}
               copiar link
             </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-medium text-foreground">Cartão antes do clique</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Como o link aparece quando é partilhado.
-            </p>
-          </div>
-          <div className="grid-field flex min-h-56 items-center justify-center p-5">
-            <GhostPreview
-              style={style}
-              title={title || 'Título do preview'}
-              description={description}
-              source={source}
-            />
           </div>
         </div>
 
