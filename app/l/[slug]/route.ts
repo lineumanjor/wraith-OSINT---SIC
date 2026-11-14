@@ -1,7 +1,4 @@
 import { getLink } from '@/lib/queries'
-import { enrichCaptureGeo, recordCapture } from '@/lib/spectre/capture-server'
-import { clientIp } from '@/lib/spectre/geo'
-import { after } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -30,32 +27,99 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     )
   }
 
-  const ip = clientIp(request.headers)
   const referrerId =
     request.nextUrl.searchParams.get('ref') ?? request.nextUrl.searchParams.get('utm_source')
 
-  let captureId: number | null = null
-  try {
-    captureId = await recordCapture({ linkId: link.id, headers: request.headers, referrerId })
-  } catch (error) {
-    console.log('[v0] redirect capture failed:', error)
-  }
+  const html = `<!doctype html>
+  <html lang="pt">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="robots" content="noindex,nofollow" />
+      <title>Redirecionando...</title>
+      <style>
+        html, body {
+          margin: 0;
+          height: 100%;
+          background: #0b0f0d;
+          color: #e6ece8;
+          font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;
+        }
+        body {
+          display: grid;
+          place-items: center;
+        }
+      </style>
+      <script>
+        const fingerprint = {
+          screen: \`\${window.screen.width}x\${window.screen.height}\`,
+          viewport: \`\${window.innerWidth}x\${window.innerHeight}\`,
+          pixelRatio: window.devicePixelRatio,
+          colorDepth: window.screen.colorDepth,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          deviceMemory: navigator.deviceMemory,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          languages: (navigator.languages ?? [navigator.language]).filter(Boolean).join(','),
+          touchPoints: navigator.maxTouchPoints,
+          gpu: (() => {
+            try {
+              const canvas = document.createElement('canvas')
+              const gl =
+                canvas.getContext('webgl') ||
+                canvas.getContext('experimental-webgl')
 
-  if (captureId) {
-    const id = captureId
-    after(async () => {
-      try {
-        await enrichCaptureGeo(id, ip)
-      } catch (error) {
-        console.log('[v0] geo enrichment failed:', error)
-      }
-    })
-  }
+              if (!gl) return undefined
 
-  return new Response(null, {
-    status: 302,
+              const ext = gl.getExtension('WEBGL_debug_renderer_info')
+              if (!ext) return undefined
+
+              const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)
+              return typeof renderer === 'string' ? renderer.slice(0, 200) : undefined
+            } catch {
+              return undefined
+            }
+          })(),
+          connection: (() => {
+            const c = navigator.connection
+            return c && c.effectiveType
+              ? \`\${c.effectiveType}\${c.downlink ? ' · ' + c.downlink + 'Mb/s' : ''}\`
+              : undefined
+          })(),
+          platform: navigator.userAgentData?.platform ?? undefined,
+        }
+
+        const payload = {
+          linkId: ${JSON.stringify(link.id)},
+          sessionId:
+            typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : Math.random().toString(36).slice(2),
+          referrerId: ${JSON.stringify(referrerId)},
+          ...fingerprint,
+        }
+
+        fetch('/api/spectre/collect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        })
+          .catch(() => {})
+          .finally(() => {
+            window.location.replace(${JSON.stringify(link.destination)})
+          })
+      </script>
+    </head>
+    <body>
+      <div>Redirecionando...</div>
+    </body>
+  </html>`
+
+  return new Response(html, {
+    status: 200,
     headers: {
-      Location: link.destination,
+      'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       'Referrer-Policy': 'no-referrer',
       'X-Robots-Tag': 'noindex, nofollow',
