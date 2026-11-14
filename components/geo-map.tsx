@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { ExternalLink, Layers, MapPin } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 export type MapPoint = {
   id: string
@@ -34,27 +34,6 @@ const MAP_MODES = [
   { value: 'terrain', label: 'Terreno' },
 ] as const
 
-type LatLng = { lat: number; lng: number }
-type GoogleMapInstance = {
-  setCenter: (center: LatLng) => void
-  setZoom: (zoom: number) => void
-  setMapTypeId: (type: string) => void
-  fitBounds: (bounds: unknown, padding?: number) => void
-}
-type GoogleMarker = { setMap: (map: GoogleMapInstance | null) => void }
-type GoogleMapsApi = {
-  Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance
-  Marker: new (options: Record<string, unknown>) => GoogleMarker
-  LatLngBounds: new () => { extend: (point: LatLng) => void }
-}
-
-declare global {
-  interface Window {
-    google?: { maps: GoogleMapsApi }
-    gm_authFailure?: () => void
-  }
-}
-
 export function GeoMap({
   points,
   caption = 'Localizações registadas',
@@ -76,100 +55,7 @@ export function GeoMap({
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [mapMode, setMapMode] = useState<(typeof MAP_MODES)[number]['value']>('roadmap')
-  const [mapReady, setMapReady] = useState(false)
-  const [mapFailed, setMapFailed] = useState(false)
   const active = valid.find((point) => point.id === activeId) ?? valid[0] ?? null
-  const mapElement = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<GoogleMapInstance | null>(null)
-  const markers = useRef<GoogleMarker[]>([])
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-  useEffect(() => {
-    if (!apiKey || valid.length === 0 || !mapElement.current || mapInstance.current) return
-    let disposed = false
-    let timeout: ReturnType<typeof setTimeout> | undefined
-    const fail = () => {
-      if (disposed) return
-      setMapFailed(true)
-      setMapReady(false)
-    }
-    const initialize = () => {
-      if (disposed || !window.google?.maps || !mapElement.current) {
-        fail()
-        return
-      }
-      try {
-        const center = valid[0].coordinates
-        mapInstance.current = new window.google.maps.Map(mapElement.current, {
-          center: { lat: center[1], lng: center[0] },
-          zoom: valid.length === 1 ? 13 : 4,
-          mapTypeId: mapMode,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
-          clickableIcons: false,
-        })
-        setMapFailed(false)
-        setMapReady(true)
-      } catch {
-        fail()
-      }
-    }
-    const previousAuthFailure = window.gm_authFailure
-    window.gm_authFailure = fail
-    timeout = setTimeout(fail, 15000)
-
-    if (window.google?.maps) {
-      initialize()
-    } else {
-      const existing = document.querySelector<HTMLScriptElement>('script[data-google-maps]')
-      const script = existing ?? document.createElement('script')
-      const onLoad = () => initialize()
-      const onError = () => fail()
-      script.addEventListener('load', onLoad, { once: true })
-      script.addEventListener('error', onError, { once: true })
-      if (!existing) {
-        script.dataset.googleMaps = 'true'
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`
-        script.async = true
-        script.defer = true
-        document.head.appendChild(script)
-      } else if (script.dataset.loaded === 'true') {
-        initialize()
-      }
-      script.addEventListener('load', () => { script.dataset.loaded = 'true' }, { once: true })
-    }
-
-    return () => {
-      disposed = true
-      if (timeout) clearTimeout(timeout)
-      if (window.gm_authFailure === fail) window.gm_authFailure = previousAuthFailure
-    }
-  }, [apiKey, valid, mapMode])
-
-  useEffect(() => {
-    const map = mapInstance.current
-    if (!map || valid.length === 0 || !window.google?.maps) return
-    map.setMapTypeId(mapMode)
-    markers.current.forEach((marker) => marker.setMap(null))
-    markers.current = valid.map((point) =>
-      new window.google!.maps.Marker({
-        map,
-        position: { lat: point.coordinates[1], lng: point.coordinates[0] },
-        title: point.label,
-      }),
-    )
-    if (valid.length > 1) {
-      const bounds = new window.google.maps.LatLngBounds()
-      valid.forEach((point) => bounds.extend({ lat: point.coordinates[1], lng: point.coordinates[0] }))
-      map.fitBounds(bounds, 36)
-    } else {
-      const only = valid[0]
-      map.setCenter({ lat: only.coordinates[1], lng: only.coordinates[0] })
-      map.setZoom(13)
-    }
-    return () => markers.current.forEach((marker) => marker.setMap(null))
-  }, [active, mapMode, valid])
 
   return (
     <div
@@ -189,34 +75,16 @@ export function GeoMap({
 
       <div className="flex flex-col md:flex-row">
         <div className="relative min-h-[280px] flex-1 bg-[oklch(0.155_0.016_285)] md:min-h-[340px]">
-          {active && apiKey && !mapFailed ? (
-            <>
-              <div ref={mapElement} className="absolute inset-0" aria-label="Mapa real das capturas" />
-              {!mapReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                  <p className="rounded-md border border-border bg-background/90 px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
-                    a carregar Google Maps…
-                  </p>
-                </div>
-              )}
-            </>
-          ) : active ? (
-            <>
-              <iframe
-                key={`${active.id}-${mapMode}`}
-                title={`Mapa de ${active.label}`}
-                src={embedSource(active.coordinates, mapMode)}
-                className="absolute inset-0 size-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-              {apiKey && mapFailed && (
-                <p role="status" className="absolute bottom-3 left-3 rounded-md border border-border bg-background/90 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground shadow">
-                  Google Maps indisponível; a mostrar mapa alternativo.
-                </p>
-              )}
-            </>
+          {active ? (
+            <iframe
+              key={`${active.id}-${mapMode}`}
+              title={`Mapa de ${active.label}`}
+              src={embedSource(active.coordinates, mapMode)}
+              className="absolute inset-0 size-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <p className="rounded-md border border-border bg-background/80 px-3 py-1.5 font-mono text-[11px] tracking-wide text-muted-foreground">
