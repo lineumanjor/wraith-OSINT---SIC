@@ -2,11 +2,11 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ENTITY_KIND_LABEL, type CaseDetail, type Entity, type EntityLink, type InvestigationSummary } from '@/lib/cases/types'
+import { ENTITY_KINDS, ENTITY_KIND_LABEL, type CaseDetail, type Entity, type EntityKind, type EntityLink, type InvestigationSummary } from '@/lib/cases/types'
 import { cn } from '@/lib/utils'
-import { ArrowUpRight, GitFork, Loader2, Search, ShieldCheck } from 'lucide-react'
+import { ArrowUpRight, GitFork, Link2, Loader2, Plus, Search, ShieldCheck, X } from 'lucide-react'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 
 type CaseListResponse = { cases: InvestigationSummary[] }
@@ -28,11 +28,25 @@ export function InvestigationPivot() {
   const [caseId, setCaseId] = useState('')
   const [query, setQuery] = useState('')
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  const [positionOverrides, setPositionOverrides] = useState<Record<string, NodePosition>>({})
+  const [draggingEntityId, setDraggingEntityId] = useState<string | null>(null)
+  const graphRef = useRef<SVGSVGElement | null>(null)
   const activeCaseId = cases.some((item) => item.id === caseId) ? caseId : cases[0]?.id ?? ''
-  const { data: detail, error, isLoading } = useSWR<CaseDetail>(
+  const { data: detail, error, isLoading, mutate: mutateDetail } = useSWR<CaseDetail>(
     activeCaseId ? `/api/cases/${activeCaseId}` : null,
     fetcher,
   )
+  const [showEntityForm, setShowEntityForm] = useState(false)
+  const [newEntityKind, setNewEntityKind] = useState<EntityKind>('domain')
+  const [newEntityLabel, setNewEntityLabel] = useState('')
+  const [newEntityValue, setNewEntityValue] = useState('')
+  const [newEntityNotes, setNewEntityNotes] = useState('')
+  const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null)
+  const [connectionTargetId, setConnectionTargetId] = useState<string | null>(null)
+  const [relationLabel, setRelationLabel] = useState('')
+  const [relationNote, setRelationNote] = useState('')
+  const [editorBusy, setEditorBusy] = useState(false)
+  const [editorError, setEditorError] = useState<string | null>(null)
   const entities = detail?.entities ?? []
   const links = detail?.links ?? []
   const normalizedQuery = query.trim().toLowerCase()
@@ -46,13 +60,13 @@ export function InvestigationPivot() {
     const radiusY = visibleEntities.length > 10 ? 190 : 172
     visibleEntities.forEach((entity, index) => {
       const angle = -Math.PI / 2 + (2 * Math.PI * index) / Math.max(visibleEntities.length, 1)
-      result.set(entity.id, {
+      result.set(entity.id, positionOverrides[entity.id] ?? {
         x: 430 + radiusX * Math.cos(angle),
         y: 250 + radiusY * Math.sin(angle),
       })
     })
     return result
-  }, [visibleEntities])
+  }, [visibleEntities, positionOverrides])
   const selectedEntity = entities.find((entity) => entity.id === selectedEntityId) ?? null
   const relatedLinks = selectedEntity
     ? links.filter((link) => link.fromEntity === selectedEntity.id || link.toEntity === selectedEntity.id)
@@ -60,9 +74,123 @@ export function InvestigationPivot() {
 
   function selectEntity(entity: Entity) {
     setSelectedEntityId(entity.id)
+    if (connectionSourceId && entity.id !== connectionSourceId) {
+      setConnectionTargetId(entity.id)
+      setEditorError(null)
+    }
+  }
+
+  function startConnection() {
+    if (!selectedEntity) return
+    setConnectionSourceId(selectedEntity.id)
+    setConnectionTargetId(null)
+    setRelationLabel('')
+    setRelationNote('')
+    setEditorError(null)
+  }
+
+  function cancelConnection() {
+    setConnectionSourceId(null)
+    setConnectionTargetId(null)
+    setRelationLabel('')
+    setRelationNote('')
+    setEditorError(null)
+  }
+
+  async function submitEntity(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!activeCaseId) return
+    setEditorBusy(true)
+    setEditorError(null)
+    try {
+      const response = await fetch(`/api/cases/${activeCaseId}/records`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ recordType: 'entity', kind: newEntityKind, label: newEntityLabel, value: newEntityValue, notes: newEntityNotes, confidence: 50 }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error ?? 'Não foi possível adicionar a entidade.')
+      setNewEntityLabel('')
+      setNewEntityValue('')
+      setNewEntityNotes('')
+      setShowEntityForm(false)
+      await mutateDetail()
+      if (payload.entity?.id) setSelectedEntityId(payload.entity.id)
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : 'Ocorreu um erro inesperado.')
+    } finally {
+      setEditorBusy(false)
+    }
+  }
+
+  async function submitConnection(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!activeCaseId || !connectionSourceId || !connectionTargetId) return
+    setEditorBusy(true)
+    setEditorError(null)
+    try {
+      const response = await fetch(`/api/cases/${activeCaseId}/records`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ recordType: 'link', fromEntity: connectionSourceId, toEntity: connectionTargetId, relation: relationLabel, note: relationNote }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error ?? 'Não foi possível registar a relação.')
+      cancelConnection()
+      await mutateDetail()
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : 'Ocorreu um erro inesperado.')
+    } finally {
+      setEditorBusy(false)
+    }
+  }
+
+  function moveNodeWithKeyboard(event: React.KeyboardEvent<SVGGElement>, entity: Entity) {
+    const movement: Record<string, NodePosition> = {
+      ArrowUp: { x: 0, y: -12 },
+      ArrowDown: { x: 0, y: 12 },
+      ArrowLeft: { x: -12, y: 0 },
+      ArrowRight: { x: 12, y: 0 },
+    }
+    const delta = movement[event.key]
+    const position = positions.get(entity.id)
+    if (!delta || !position) return false
+    event.preventDefault()
+    setPositionOverrides((current) => ({
+      ...current,
+      [entity.id]: {
+        x: Math.max(32, Math.min(828, position.x + delta.x)),
+        y: Math.max(32, Math.min(468, position.y + delta.y)),
+      },
+    }))
+    return true
+  }
+
+  function handleNodePointerDown(event: React.PointerEvent<SVGGElement>, entity: Entity) {
+    if (event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDraggingEntityId(entity.id)
+  }
+
+  function handleGraphPointerMove(event: React.PointerEvent<SVGSVGElement>) {
+    if (!draggingEntityId || !graphRef.current) return
+    const point = graphRef.current.createSVGPoint()
+    point.x = event.clientX
+    point.y = event.clientY
+    const matrix = graphRef.current.getScreenCTM()
+    if (!matrix) return
+    const graphPoint = point.matrixTransform(matrix.inverse())
+    setPositionOverrides((current) => ({
+      ...current,
+      [draggingEntityId]: {
+        x: Math.max(32, Math.min(828, graphPoint.x)),
+        y: Math.max(32, Math.min(468, graphPoint.y)),
+      },
+    }))
   }
 
   function handleNodeKeyDown(event: React.KeyboardEvent<SVGGElement>, entity: Entity) {
+    if (moveNodeWithKeyboard(event, entity)) return
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       selectEntity(entity)
@@ -80,7 +208,7 @@ export function InvestigationPivot() {
             Pivotagem gráfica
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Explore visualmente as entidades e relações que já constam nos dossiês autorizados.
+            Registe entidades, crie vínculos e explore dados autorizados num grafo visual.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-3 py-2">
@@ -92,7 +220,7 @@ export function InvestigationPivot() {
       <aside className="mb-5 flex items-start gap-3 rounded-xl border border-accent/20 bg-accent/[0.05] p-3.5" aria-label="Limites da pivotagem">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Esta vista não pesquisa nem enriquece dados: apresenta apenas entidades e relações que já foram registadas no dossiê.
+          Sem recolha automática: organize os dados já autorizados, registe entidades manualmente e documente cada ligação com a respetiva proveniência.
         </p>
       </aside>
 
@@ -120,6 +248,9 @@ export function InvestigationPivot() {
                 onChange={(event) => {
                   setCaseId(event.target.value)
                   setSelectedEntityId(null)
+                  setPositionOverrides({})
+                  setShowEntityForm(false)
+                  cancelConnection()
                 }}
                 className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
               >
@@ -159,20 +290,46 @@ export function InvestigationPivot() {
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
                     <div>
                       <h2 id="graph-title" className="text-sm font-semibold text-foreground">Mapa de relações</h2>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">Selecione um nó para ver os vínculos registados.</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">Arraste, selecione e ligue nós para compor o mapa.</p>
                     </div>
-                    <Badge variant="outline">{visibleEntities.length} visíveis</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{visibleEntities.length} visíveis</Badge>
+                      <Button type="button" size="sm" variant="outline" onClick={() => { setShowEntityForm((current) => !current); cancelConnection(); setEditorError(null) }}>
+                        <Plus data-icon="inline-start" /> Adicionar nó
+                      </Button>
+                    </div>
                   </div>
+                  {connectionSourceId && (
+                    <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/20 bg-primary/[0.06] px-4 py-2.5">
+                      <p className="text-xs text-foreground">
+                        {connectionTargetId
+                          ? `A ligar ${entities.find((item) => item.id === connectionSourceId)?.label} a ${entities.find((item) => item.id === connectionTargetId)?.label}`
+                          : `Modo de ligação: selecione outro nó para ligar a ${entities.find((item) => item.id === connectionSourceId)?.label}.`}
+                      </p>
+                      <Button type="button" size="sm" variant="ghost" onClick={cancelConnection}>Cancelar</Button>
+                    </div>
+                  )}
                   {visibleEntities.length === 0 ? (
-                    <p className="px-4 py-12 text-center text-sm text-muted-foreground">
-                      {entities.length === 0 ? 'Este dossiê ainda não tem entidades.' : 'Nenhuma entidade corresponde ao filtro.'}
-                    </p>
+                    <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {entities.length === 0 ? 'O espaço está pronto. Adicione o primeiro nó para começar a mapear a investigação.' : 'Nenhuma entidade corresponde ao filtro.'}
+                      </p>
+                      {entities.length === 0 && (
+                        <Button type="button" size="sm" onClick={() => setShowEntityForm(true)}>
+                          <Plus data-icon="inline-start" /> Adicionar primeiro nó
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <div className="grid-field overflow-x-auto p-2 sm:p-4">
                       <svg
+                        ref={graphRef}
                         viewBox="0 0 860 500"
-                        role="img"
-                        aria-label={`Grafo com ${visibleEntities.length} entidades e relações registadas`}
+                        role="group"
+                        aria-label={`Grafo interativo com ${visibleEntities.length} entidades e relações registadas`}
+                        onPointerMove={handleGraphPointerMove}
+                        onPointerUp={() => setDraggingEntityId(null)}
+                        onPointerCancel={() => setDraggingEntityId(null)}
                         className="mx-auto min-w-[680px] max-w-full"
                       >
                         <defs>
@@ -203,10 +360,11 @@ export function InvestigationPivot() {
                           if (!from || !to) return null
                           const midX = (from.x + to.x) / 2
                           const midY = (from.y + to.y) / 2
+                          const isRelated = selectedEntity && (link.fromEntity === selectedEntity.id || link.toEntity === selectedEntity.id)
                           return (
                             <g key={link.id}>
-                              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="var(--chart-2)" strokeOpacity="0.65" strokeWidth="1.5" />
-                              <text x={midX} y={midY - 5} textAnchor="middle" className="fill-muted-foreground" fontSize="9">
+                              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={isRelated ? 'var(--primary)' : 'var(--chart-2)'} strokeOpacity={isRelated ? 1 : 0.45} strokeWidth={isRelated ? 2.5 : 1.25} />
+                              <text x={midX} y={midY - 5} textAnchor="middle" className={isRelated ? 'fill-primary' : 'fill-muted-foreground'} fontSize="9">
                                 {truncateLabel(link.relation, 20)}
                               </text>
                             </g>
@@ -234,7 +392,9 @@ export function InvestigationPivot() {
                               aria-pressed={selected}
                               onClick={() => selectEntity(entity)}
                               onKeyDown={(event) => handleNodeKeyDown(event, entity)}
-                              className="cursor-pointer outline-none"
+                              onPointerDown={(event) => handleNodePointerDown(event, entity)}
+                              style={{ touchAction: 'none' }}
+                              className={cn('cursor-grab outline-none active:cursor-grabbing', connectionSourceId && entity.id !== connectionSourceId && 'cursor-crosshair')}
                             >
                               <title>{entity.label} · {ENTITY_KIND_LABEL[entity.kind]}</title>
                               <circle
@@ -292,10 +452,61 @@ export function InvestigationPivot() {
                     })}
                   </ul>
                   <div className="min-h-36 flex-1 border-t border-border p-4">
-                    {selectedEntity ? (
-                      <EntityDetails entity={selectedEntity} links={relatedLinks} entities={entities} />
+                    {showEntityForm ? (
+                      <form onSubmit={submitEntity} className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-foreground">Adicionar nó ao grafo</h3>
+                          <Button type="button" size="icon-sm" variant="ghost" aria-label="Fechar formulário de nó" onClick={() => setShowEntityForm(false)}><X data-icon="inline-start" /></Button>
+                        </div>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Tipo de dado
+                          <select value={newEntityKind} onChange={(event) => setNewEntityKind(event.target.value as EntityKind)} className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground">
+                            {ENTITY_KINDS.map((kind) => <option key={kind} value={kind}>{ENTITY_KIND_LABEL[kind]}</option>)}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Designação
+                          <input value={newEntityLabel} onChange={(event) => setNewEntityLabel(event.target.value)} required minLength={2} maxLength={200} placeholder="Nome, conta, domínio ou local" className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground" />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Identificador (opcional)
+                          <input value={newEntityValue} onChange={(event) => setNewEntityValue(event.target.value)} maxLength={500} placeholder="URL, handle, telefone…" className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground" />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Nota ou fonte autorizada (opcional)
+                          <textarea value={newEntityNotes} onChange={(event) => setNewEntityNotes(event.target.value)} rows={2} maxLength={2000} placeholder="Registe a proveniência do dado" className="resize-y rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground" />
+                        </label>
+                        {editorError && <p role="alert" className="text-xs text-destructive">{editorError}</p>}
+                        <Button type="submit" size="sm" disabled={editorBusy}>
+                          {editorBusy ? <Loader2 data-icon="inline-start" className="animate-spin" aria-hidden /> : <Plus data-icon="inline-start" />}
+                          Adicionar ao mapa
+                        </Button>
+                      </form>
+                    ) : connectionTargetId && connectionSourceId ? (
+                      <form onSubmit={submitConnection} className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-foreground">Descrever relação</h3>
+                          <Button type="button" size="icon-sm" variant="ghost" aria-label="Cancelar criação de relação" onClick={cancelConnection}><X data-icon="inline-start" /></Button>
+                        </div>
+                        <p className="text-xs leading-relaxed text-muted-foreground">A relação será registada entre dois nós deste dossiê. Inclua apenas informação com proveniência autorizada.</p>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Tipo de relação
+                          <input value={relationLabel} onChange={(event) => setRelationLabel(event.target.value)} required minLength={2} maxLength={120} placeholder="ex.: associado a, proprietário de" className="rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground" />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
+                          Nota / referência de origem (opcional)
+                          <textarea value={relationNote} onChange={(event) => setRelationNote(event.target.value)} maxLength={1000} rows={3} placeholder="Registe contexto e proveniência" className="resize-y rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground" />
+                        </label>
+                        {editorError && <p role="alert" className="text-xs text-destructive">{editorError}</p>}
+                        <Button type="submit" size="sm" disabled={editorBusy}>
+                          {editorBusy ? <Loader2 data-icon="inline-start" className="animate-spin" aria-hidden /> : <Link2 data-icon="inline-start" />}
+                          Registar relação
+                        </Button>
+                      </form>
+                    ) : selectedEntity ? (
+                      <EntityDetails entity={selectedEntity} links={relatedLinks} entities={entities} onStartConnection={startConnection} isConnecting={Boolean(connectionSourceId)} />
                     ) : (
-                      <p className="text-xs leading-relaxed text-muted-foreground">Selecione um nó no grafo ou uma entidade na lista para consultar os respetivos vínculos.</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">Selecione ou arraste um nó para organizar o mapa. Use as setas do teclado para reposicionar o nó selecionado.</p>
                     )}
                   </div>
                   <Link href={`/cases/${activeCaseId}`} className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-primary hover:bg-primary/5">
@@ -320,7 +531,7 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   )
 }
 
-function EntityDetails({ entity, links, entities }: { entity: Entity; links: EntityLink[]; entities: Entity[] }) {
+function EntityDetails({ entity, links, entities, onStartConnection, isConnecting }: { entity: Entity; links: EntityLink[]; entities: Entity[]; onStartConnection: () => void; isConnecting: boolean }) {
   const linkedEntities = links.map((link) => {
     const isSource = link.fromEntity === entity.id
     const relatedId = isSource ? link.toEntity : link.fromEntity
@@ -342,6 +553,9 @@ function EntityDetails({ entity, links, entities }: { entity: Entity; links: Ent
       <p className="mt-3 font-mono text-[9px] tracking-wider text-muted-foreground uppercase">
         Confiança registada: {entity.confidence}% · Criada em {new Date(entity.createdAt).toLocaleDateString('pt-PT')}
       </p>
+      <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onStartConnection} disabled={isConnecting}>
+        <Link2 data-icon="inline-start" /> Ligar a outro nó
+      </Button>
       <h4 className="mt-4 text-[11px] font-semibold text-foreground">Vínculos documentados ({linkedEntities.length})</h4>
       {linkedEntities.length === 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">Sem vínculos registados para esta entidade.</p>
