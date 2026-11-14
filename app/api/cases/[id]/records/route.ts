@@ -2,7 +2,7 @@ import { makeId, touchInvestigation } from '@/lib/cases/queries'
 import { ENTITY_KINDS } from '@/lib/cases/types'
 import { db } from '@/lib/db'
 import { entities, entityLinks, facts } from '@/lib/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
@@ -120,6 +120,14 @@ export async function POST(request: Request, { params }: Params) {
     }
     if (relation.length < 2) {
       return Response.json({ error: 'descreva a relação entre as entidades' }, { status: 400 })
+    }
+
+    const matchingEntities = await db
+      .select({ id: entities.id })
+      .from(entities)
+      .where(and(eq(entities.investigationId, id), inArray(entities.id, [fromEntity, toEntity])))
+    if (matchingEntities.length !== 2) {
+      return Response.json({ error: 'as duas entidades têm de pertencer a este dossiê' }, { status: 400 })
     }
 
     const [created] = await db

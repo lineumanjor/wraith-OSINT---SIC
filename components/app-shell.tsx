@@ -2,10 +2,12 @@
 
 import { cn } from '@/lib/utils'
 import {
+  BookOpen,
   Cpu,
   Eye,
   FlaskConical,
   FolderSearch,
+  GitFork,
   Link2,
   Radar,
   ShieldCheck,
@@ -14,15 +16,36 @@ import {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const NAV = [
-  { href: '/', label: 'Wraith Dashboard', short: 'Dashboard', icon: Radar, code: '01' },
-  { href: '/cases', label: 'Investigações', short: 'Dossiês', icon: FolderSearch, code: '02' },
-  { href: '/terminal', label: 'Spectre Terminal', short: 'Terminal', icon: SquareTerminal, code: '03' },
-  { href: '/forge', label: 'Link Forge', short: 'Forge', icon: Link2, code: '04' },
-  { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '05' },
-  { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '06' },
-  { href: '/sandbox', label: 'Simulador de Treino', short: 'Treino', icon: ShieldCheck, code: '07' },
+const NAV_GROUPS = [
+  {
+    label: 'Visão geral',
+    items: [{ href: '/', label: 'Painel operacional', short: 'Painel', icon: Radar, code: '01' }],
+  },
+  {
+    label: 'Investigações',
+    items: [
+      { href: '/cases', label: 'Dossiês', short: 'Dossiês', icon: FolderSearch, code: '02' },
+      { href: '/pivotagem', label: 'Pivotagem gráfica', short: 'Pivotagem', icon: GitFork, code: '03' },
+    ],
+  },
+  {
+    label: 'Referências',
+    items: [
+      { href: '/framework-osint', label: 'Framework OSINT', short: 'Framework', icon: BookOpen, code: '04' },
+    ],
+  },
+  {
+    label: 'Ferramentas',
+    items: [
+      { href: '/terminal', label: 'Spectre Terminal', short: 'Terminal', icon: SquareTerminal, code: '05' },
+      { href: '/forge', label: 'Link Forge', short: 'Forge', icon: Link2, code: '06' },
+      { href: '/preview', label: 'Ghost Preview', short: 'Preview', icon: Eye, code: '07' },
+      { href: '/engine', label: 'Spectre Engine', short: 'Engine', icon: Cpu, code: '08' },
+      { href: '/sandbox', label: 'Simulador de Treino', short: 'Treino', icon: ShieldCheck, code: '09' },
+    ],
+  },
 ]
+const NAV = NAV_GROUPS.flatMap((group) => group.items)
 
 function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
@@ -61,34 +84,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-2" aria-label="Navegação principal">
-          {NAV.map((item) => {
-            const active = isActive(pathname, item.href)
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                  active
-                    ? 'bg-primary/12 text-foreground'
-                    : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
-                )}
-              >
-                {active && (
-                  <span className="absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-                )}
-                <Icon
-                  className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')}
-                  aria-hidden
-                />
-                <span className="flex-1 truncate">{item.label}</span>
-                <span className="font-mono text-[10px] text-muted-foreground/60">{item.code}</span>
-              </Link>
-            )
-          })}
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-2" aria-label="Navegação principal">
+          {NAV_GROUPS.map((group) => (
+            <section key={group.label} aria-label={group.label}>
+              <h2 className="mb-1.5 px-3 font-mono text-[9px] tracking-[0.18em] text-muted-foreground/65 uppercase">
+                {group.label}
+              </h2>
+              <div className="flex flex-col gap-1">
+                {group.items.map((item) => {
+                  const active = isActive(pathname, item.href)
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                        active
+                          ? 'bg-primary/12 text-foreground'
+                          : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground',
+                      )}
+                    >
+                      {active && (
+                        <span className="absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+                      )}
+                      <Icon
+                        className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')}
+                        aria-hidden
+                      />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground/60">{item.code}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
         </nav>
 
         <div className="border-t border-sidebar-border p-3">
