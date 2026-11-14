@@ -125,4 +125,4 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       'X-Robots-Tag': 'noindex, nofollow',
     },
   })
-} Nuno um no
+}

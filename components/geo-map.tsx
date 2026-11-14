@@ -22,8 +22,9 @@ function formatCoordinates([lng, lat]: [number, number]) {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`
 }
 
-function embedSource([lng, lat]: [number, number]) {
-  return `https://maps.google.com/maps?q=${lat},${lng}&z=13&hl=pt-PT&output=embed`
+function embedSource([lng, lat]: [number, number], mode: (typeof MAP_MODES)[number]['value']) {
+  const embedMode = mode === 'roadmap' ? 'm' : mode === 'satellite' ? 'k' : mode === 'hybrid' ? 'h' : 'p'
+  return `https://maps.google.com/maps?q=${lat},${lng}&z=13&t=${embedMode}&hl=pt-PT&output=embed`
 }
 
 const MAP_MODES = [
@@ -33,24 +34,24 @@ const MAP_MODES = [
   { value: 'terrain', label: 'Terreno' },
 ] as const
 
+type LatLng = { lat: number; lng: number }
 type GoogleMapInstance = {
-  setCenter: (center: { lat: number; lng: number }) => void
+  setCenter: (center: LatLng) => void
   setZoom: (zoom: number) => void
   setMapTypeId: (type: string) => void
   fitBounds: (bounds: unknown, padding?: number) => void
 }
-
 type GoogleMarker = { setMap: (map: GoogleMapInstance | null) => void }
+type GoogleMapsApi = {
+  Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance
+  Marker: new (options: Record<string, unknown>) => GoogleMarker
+  LatLngBounds: new () => { extend: (point: LatLng) => void }
+}
 
 declare global {
   interface Window {
-    google?: {
-      maps: {
-        Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance
-        Marker: new (options: Record<string, unknown>) => GoogleMarker
-        LatLngBounds: new () => { extend: (point: { lat: number; lng: number }) => void }
-      }
-    }
+    google?: { maps: GoogleMapsApi }
+    gm_authFailure?: () => void
   }
 }
 
@@ -76,6 +77,7 @@ export function GeoMap({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [mapMode, setMapMode] = useState<(typeof MAP_MODES)[number]['value']>('roadmap')
   const [mapReady, setMapReady] = useState(false)
+  const [mapFailed, setMapFailed] = useState(false)
   const active = valid.find((point) => point.id === activeId) ?? valid[0] ?? null
   const mapElement = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<GoogleMapInstance | null>(null)
@@ -83,43 +85,67 @@ export function GeoMap({
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
   useEffect(() => {
-    if (!apiKey || valid.length === 0 || !mapElement.current) return
-
-    const initialize = () => {
-      if (!window.google?.maps || !mapElement.current) return
-      const center = valid[0].coordinates
-      mapInstance.current = new window.google.maps.Map(mapElement.current, {
-        center: { lat: center[1], lng: center[0] },
-        zoom: valid.length === 1 ? 13 : 4,
-        mapTypeId: mapMode,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        clickableIcons: false,
-      })
-      setMapReady(true)
+    if (!apiKey || valid.length === 0 || !mapElement.current || mapInstance.current) return
+    let disposed = false
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    const fail = () => {
+      if (disposed) return
+      setMapFailed(true)
+      setMapReady(false)
     }
+    const initialize = () => {
+      if (disposed || !window.google?.maps || !mapElement.current) {
+        fail()
+        return
+      }
+      try {
+        const center = valid[0].coordinates
+        mapInstance.current = new window.google.maps.Map(mapElement.current, {
+          center: { lat: center[1], lng: center[0] },
+          zoom: valid.length === 1 ? 13 : 4,
+          mapTypeId: mapMode,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          clickableIcons: false,
+        })
+        setMapFailed(false)
+        setMapReady(true)
+      } catch {
+        fail()
+      }
+    }
+    const previousAuthFailure = window.gm_authFailure
+    window.gm_authFailure = fail
+    timeout = setTimeout(fail, 15000)
 
     if (window.google?.maps) {
       initialize()
-      return
+    } else {
+      const existing = document.querySelector<HTMLScriptElement>('script[data-google-maps]')
+      const script = existing ?? document.createElement('script')
+      const onLoad = () => initialize()
+      const onError = () => fail()
+      script.addEventListener('load', onLoad, { once: true })
+      script.addEventListener('error', onError, { once: true })
+      if (!existing) {
+        script.dataset.googleMaps = 'true'
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`
+        script.async = true
+        script.defer = true
+        document.head.appendChild(script)
+      } else if (script.dataset.loaded === 'true') {
+        initialize()
+      }
+      script.addEventListener('load', () => { script.dataset.loaded = 'true' }, { once: true })
     }
 
-    const existing = document.querySelector<HTMLScriptElement>('script[data-google-maps]')
-    if (existing) {
-      existing.addEventListener('load', initialize, { once: true })
-      return () => existing.removeEventListener('load', initialize)
+    return () => {
+      disposed = true
+      if (timeout) clearTimeout(timeout)
+      if (window.gm_authFailure === fail) window.gm_authFailure = previousAuthFailure
     }
-
-    const script = document.createElement('script')
-    script.dataset.googleMaps = 'true'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}`
-    script.async = true
-    script.defer = true
-    script.addEventListener('load', initialize, { once: true })
-    document.head.appendChild(script)
-    return () => script.removeEventListener('load', initialize)
-  }, [apiKey, valid])
+  }, [apiKey, valid, mapMode])
 
   useEffect(() => {
     const map = mapInstance.current
@@ -133,9 +159,15 @@ export function GeoMap({
         title: point.label,
       }),
     )
-    const activePoint = active ?? valid[0]
-    map.setCenter({ lat: activePoint.coordinates[1], lng: activePoint.coordinates[0] })
-    map.setZoom(valid.length === 1 ? 13 : 4)
+    if (valid.length > 1) {
+      const bounds = new window.google.maps.LatLngBounds()
+      valid.forEach((point) => bounds.extend({ lat: point.coordinates[1], lng: point.coordinates[0] }))
+      map.fitBounds(bounds, 36)
+    } else {
+      const only = valid[0]
+      map.setCenter({ lat: only.coordinates[1], lng: only.coordinates[0] })
+      map.setZoom(13)
+    }
     return () => markers.current.forEach((marker) => marker.setMap(null))
   }, [active, mapMode, valid])
 
@@ -157,7 +189,7 @@ export function GeoMap({
 
       <div className="flex flex-col md:flex-row">
         <div className="relative min-h-[280px] flex-1 bg-[oklch(0.155_0.016_285)] md:min-h-[340px]">
-          {active && apiKey ? (
+          {active && apiKey && !mapFailed ? (
             <>
               <div ref={mapElement} className="absolute inset-0" aria-label="Mapa real das capturas" />
               {!mapReady && (
@@ -169,15 +201,22 @@ export function GeoMap({
               )}
             </>
           ) : active ? (
-            <iframe
-              key={active.id}
-              title={`Mapa de ${active.label}`}
-              src={embedSource(active.coordinates)}
-              className="absolute inset-0 size-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
+            <>
+              <iframe
+                key={`${active.id}-${mapMode}`}
+                title={`Mapa de ${active.label}`}
+                src={embedSource(active.coordinates, mapMode)}
+                className="absolute inset-0 size-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+              {apiKey && mapFailed && (
+                <p role="status" className="absolute bottom-3 left-3 rounded-md border border-border bg-background/90 px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground shadow">
+                  Google Maps indisponível; a mostrar mapa alternativo.
+                </p>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <p className="rounded-md border border-border bg-background/80 px-3 py-1.5 font-mono text-[11px] tracking-wide text-muted-foreground">
