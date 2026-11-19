@@ -1,13 +1,29 @@
 import { db } from '@/lib/db'
-import { domains, investigations, links } from '@/lib/db/schema'
-import { getLinks } from '@/lib/queries'
-import type { PreviewStyle, RedirectMode } from '@/lib/spectre/types'
-import { eq } from 'drizzle-orm'
+import {
+  captures,
+  domains,
+  investigations,
+  links,
+} from '@/lib/db/schema'
+import type {
+  PreviewStyle,
+  RedirectMode,
+} from '@/lib/spectre/types'
+import { desc, eq, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-const STYLES: PreviewStyle[] = ['messaging', 'cloud', 'marketplace']
-const MODES: RedirectMode[] = ['preview', 'direct']
+const STYLES: PreviewStyle[] = [
+  'messaging',
+  'cloud',
+  'marketplace',
+]
+
+const MODES: RedirectMode[] = [
+  'preview',
+  'direct',
+]
+
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789'
 
 const RESERVED_SLUGS = new Set([
@@ -29,7 +45,9 @@ const RESERVED_SLUGS = new Set([
   'sitemap.xml',
 ])
 
-function parseSlug(value: unknown): { slug: string | null; error?: string } {
+function parseSlug(
+  value: unknown,
+): { slug: string | null; error?: string } {
   if (value === undefined || value === null || value === '') {
     return { slug: null }
   }
@@ -55,7 +73,9 @@ function makeSlug(length = 8) {
   let out = ''
 
   for (let i = 0; i < length; i += 1) {
-    out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)]
+    out += ALPHABET[
+      Math.floor(Math.random() * ALPHABET.length)
+    ]
   }
 
   return out
@@ -69,55 +89,20 @@ function clean(value: unknown, max: number): string | null {
   return trimmed ? trimmed.slice(0, max) : null
 }
 
-// GET — Listar links, com filtragem opcional por investigação
+/**
+ * GET /api/links
+ *
+ * Lista todos os links.
+ *
+ * GET /api/links?investigationId=ID
+ *
+ * Lista apenas os links associados a uma investigação.
+ */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const investigationId = searchParams.get('investigationId')?.trim()
 
-  const linksList = await getLinks(investigationId || undefined)
+  const investigationId = searchParams.get('investigationId')
 
-  return Response.json(
-    { links: linksList },
-    { headers: { 'Cache-Control': 'no-store' } },
-  )
-}
-
-// POST — Criar novo link
-export async function POST(request: Request) {
-  let body: Record<string, unknown>
-
-  try {
-    body = (await request.json()) as Record<string, unknown>
-  } catch {
-    return Response.json(
-      { ok: false, error: 'invalid_body' },
-      { status: 400 },
-    )
-  }
-
-  const label = clean(body.label, 120)
-  const destination = clean(body.destination, 2048)
-
-  const style = STYLES.includes(body.previewStyle as PreviewStyle)
-    ? (body.previewStyle as PreviewStyle)
-    : 'messaging'
-
-  const mode = MODES.includes(body.redirectMode as RedirectMode)
-    ? (body.redirectMode as RedirectMode)
-    : 'direct'
-
-  const { slug, error: slugError } = parseSlug(body.slug)
-  const requestedHost = clean(body.host, 253)?.toLowerCase() ?? null
-  const investigationId = clean(body.investigationId, 100)
-
-  if (slugError) {
-    return Response.json(
-      { ok: false, error: slugError },
-      { status: 400 },
-    )
-  }
-
-  // Validar investigação associada
   if (investigationId) {
     const [investigation] = await db
       .select({ id: investigations.id })
@@ -133,20 +118,92 @@ export async function POST(request: Request) {
     }
   }
 
-  // Validar domínio
-  if (requestedHost) {
-    const [known] = await db
-      .select({ id: domains.id })
-      .from(domains)
-      .where(eq(domains.hostname, requestedHost))
-      .limit(1)
+  const rows = await db
+    .select({
+      link: links,
+      hits: sql<number>`count(${captures.id})::int`,
+    })
+    .from(links)
+    .leftJoin(captures, eq(captures.linkId, links.id))
+    .where(
+      investigationId
+        ? eq(links.investigationId, investigationId)
+        : undefined,
+    )
+    .groupBy(links.id)
+    .orderBy(desc(links.createdAt))
 
-    if (!known) {
-      return Response.json(
-        { ok: false, error: 'unknown_host' },
-        { status: 400 },
-      )
-    }
+  const result = rows.map(({ link, hits }) => ({
+    id: link.id,
+    label: link.label,
+    destination: link.destination,
+    slug: link.slug,
+    host: link.host,
+    redirectMode: link.redirectMode as RedirectMode,
+    previewStyle: link.previewStyle as PreviewStyle,
+    previewTitle: link.previewTitle,
+    previewDescription: link.previewDescription,
+    previewSource: link.previewSource,
+    active: link.active,
+    createdAt: link.createdAt.toISOString(),
+    hits: hits ?? 0,
+  }))
+
+  return Response.json(
+    { links: result },
+    {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    },
+  )
+}
+
+/**
+ * POST /api/links
+ *
+ * Cria um novo link.
+ */
+export async function POST(request: Request) {
+  let body: Record<string, unknown>
+
+  try {
+    body = (await request.json()) as Record<string, unknown>
+  } catch {
+    return Response.json(
+      { ok: false, error: 'invalid_body' },
+      { status: 400 },
+    )
+  }
+
+  const label = clean(body.label, 120)
+  const destination = clean(body.destination, 2048)
+
+  const style = STYLES.includes(
+    body.previewStyle as PreviewStyle,
+  )
+    ? (body.previewStyle as PreviewStyle)
+    : 'messaging'
+
+  const mode = MODES.includes(
+    body.redirectMode as RedirectMode,
+  )
+    ? (body.redirectMode as RedirectMode)
+    : 'direct'
+
+  const { slug, error: slugError } = parseSlug(body.slug)
+
+  const requestedHost =
+    clean(body.host, 253)?.toLowerCase() ?? null
+
+  const investigationId =
+    clean(body.investigationId, 128)
+
+  if (slugError) {
+    return Response.json(
+      { ok: false, error: slugError },
+      { status: 400 },
+    )
   }
 
   if (!label || !destination) {
@@ -175,7 +232,42 @@ export async function POST(request: Request) {
     )
   }
 
-  // Verificar alias
+  // Validar investigação, quando indicada
+  if (investigationId) {
+    const [investigation] = await db
+      .select({ id: investigations.id })
+      .from(investigations)
+      .where(eq(investigations.id, investigationId))
+      .limit(1)
+
+    if (!investigation) {
+      return Response.json(
+        {
+          ok: false,
+          error: 'investigation_not_found',
+        },
+        { status: 404 },
+      )
+    }
+  }
+
+  // Validar domínio personalizado
+  if (requestedHost) {
+    const [known] = await db
+      .select({ id: domains.id })
+      .from(domains)
+      .where(eq(domains.hostname, requestedHost))
+      .limit(1)
+
+    if (!known) {
+      return Response.json(
+        { ok: false, error: 'unknown_host' },
+        { status: 400 },
+      )
+    }
+  }
+
+  // Verificar alias duplicado
   if (slug) {
     const [taken] = await db
       .select({ id: links.id })
@@ -201,24 +293,37 @@ export async function POST(request: Request) {
       destination: normalized.toString(),
       slug,
       host: requestedHost,
-      investigationId,
       redirectMode: mode,
       previewStyle: style,
+      investigationId,
       previewTitle: clean(body.previewTitle, 160),
-      previewDescription: clean(body.previewDescription, 320),
+      previewDescription: clean(
+        body.previewDescription,
+        320,
+      ),
       previewSource: clean(body.previewSource, 120),
     })
     .returning()
 
   return Response.json(
-    { ok: true, link: created },
+    {
+      ok: true,
+      link: created,
+    },
     { status: 201 },
   )
 }
 
-// PATCH — Activar ou desativar link
+/**
+ * PATCH /api/links
+ *
+ * Activa ou desativa um link.
+ */
 export async function PATCH(request: Request) {
-  let body: { id?: string; active?: boolean }
+  let body: {
+    id?: string
+    active?: boolean
+  }
 
   try {
     body = (await request.json()) as {
@@ -232,17 +337,37 @@ export async function PATCH(request: Request) {
     )
   }
 
-  if (!body.id || typeof body.active !== 'boolean') {
+  if (
+    typeof body.id !== 'string' ||
+    !body.id.trim() ||
+    typeof body.active !== 'boolean'
+  ) {
     return Response.json(
       { ok: false, error: 'missing_fields' },
       { status: 400 },
     )
   }
 
-  await db
+  const [updated] = await db
     .update(links)
-    .set({ active: body.active })
+    .set({
+      active: body.active,
+    })
     .where(eq(links.id, body.id))
+    .returning({
+      id: links.id,
+      active: links.active,
+    })
 
-  return Response.json({ ok: true })
+  if (!updated) {
+    return Response.json(
+      { ok: false, error: 'link_not_found' },
+      { status: 404 },
+    )
+  }
+
+  return Response.json({
+    ok: true,
+    link: updated,
+  })
 }
