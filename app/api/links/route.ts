@@ -30,51 +30,78 @@ const RESERVED_SLUGS = new Set([
 ])
 
 function parseSlug(value: unknown): { slug: string | null; error?: string } {
-  if (value === undefined || value === null || value === '') return { slug: null }
-  if (typeof value !== 'string') return { slug: null, error: 'invalid_slug' }
+  if (value === undefined || value === null || value === '') {
+    return { slug: null }
+  }
+
+  if (typeof value !== 'string') {
+    return { slug: null, error: 'invalid_slug' }
+  }
 
   const slug = value.trim().toLowerCase()
-  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) return { slug: null, error: 'invalid_slug' }
-  if (RESERVED_SLUGS.has(slug)) return { slug: null, error: 'reserved_slug' }
+
+  if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) {
+    return { slug: null, error: 'invalid_slug' }
+  }
+
+  if (RESERVED_SLUGS.has(slug)) {
+    return { slug: null, error: 'reserved_slug' }
+  }
 
   return { slug }
 }
 
 function makeSlug(length = 8) {
   let out = ''
+
   for (let i = 0; i < length; i += 1) {
     out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)]
   }
+
   return out
 }
 
 function clean(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null
+
   const trimmed = value.trim()
+
   return trimmed ? trimmed.slice(0, max) : null
 }
 
-export async function GET() {
+// GET — Listar links, com filtragem opcional por investigação
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const investigationId = searchParams.get('investigationId')?.trim()
+
+  const linksList = await getLinks(investigationId || undefined)
+
   return Response.json(
-    { links: await getLinks() },
+    { links: linksList },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }
 
+// POST — Criar novo link
 export async function POST(request: Request) {
   let body: Record<string, unknown>
 
   try {
     body = (await request.json()) as Record<string, unknown>
   } catch {
-    return Response.json({ ok: false, error: 'invalid_body' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'invalid_body' },
+      { status: 400 },
+    )
   }
 
   const label = clean(body.label, 120)
   const destination = clean(body.destination, 2048)
+
   const style = STYLES.includes(body.previewStyle as PreviewStyle)
     ? (body.previewStyle as PreviewStyle)
     : 'messaging'
+
   const mode = MODES.includes(body.redirectMode as RedirectMode)
     ? (body.redirectMode as RedirectMode)
     : 'direct'
@@ -84,7 +111,10 @@ export async function POST(request: Request) {
   const investigationId = clean(body.investigationId, 100)
 
   if (slugError) {
-    return Response.json({ ok: false, error: slugError }, { status: 400 })
+    return Response.json(
+      { ok: false, error: slugError },
+      { status: 400 },
+    )
   }
 
   // Validar investigação associada
@@ -112,12 +142,18 @@ export async function POST(request: Request) {
       .limit(1)
 
     if (!known) {
-      return Response.json({ ok: false, error: 'unknown_host' }, { status: 400 })
+      return Response.json(
+        { ok: false, error: 'unknown_host' },
+        { status: 400 },
+      )
     }
   }
 
   if (!label || !destination) {
-    return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'missing_fields' },
+      { status: 400 },
+    )
   }
 
   // Validar destino
@@ -126,11 +162,17 @@ export async function POST(request: Request) {
   try {
     normalized = new URL(destination)
   } catch {
-    return Response.json({ ok: false, error: 'invalid_destination' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'invalid_destination' },
+      { status: 400 },
+    )
   }
 
   if (!['http:', 'https:'].includes(normalized.protocol)) {
-    return Response.json({ ok: false, error: 'invalid_protocol' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'invalid_protocol' },
+      { status: 400 },
+    )
   }
 
   // Verificar alias
@@ -142,7 +184,10 @@ export async function POST(request: Request) {
       .limit(1)
 
     if (taken) {
-      return Response.json({ ok: false, error: 'slug_taken' }, { status: 409 })
+      return Response.json(
+        { ok: false, error: 'slug_taken' },
+        { status: 409 },
+      )
     }
   }
 
@@ -165,20 +210,33 @@ export async function POST(request: Request) {
     })
     .returning()
 
-  return Response.json({ ok: true, link: created }, { status: 201 })
+  return Response.json(
+    { ok: true, link: created },
+    { status: 201 },
+  )
 }
 
+// PATCH — Activar ou desativar link
 export async function PATCH(request: Request) {
   let body: { id?: string; active?: boolean }
 
   try {
-    body = (await request.json()) as { id?: string; active?: boolean }
+    body = (await request.json()) as {
+      id?: string
+      active?: boolean
+    }
   } catch {
-    return Response.json({ ok: false, error: 'invalid_body' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'invalid_body' },
+      { status: 400 },
+    )
   }
 
   if (!body.id || typeof body.active !== 'boolean') {
-    return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 })
+    return Response.json(
+      { ok: false, error: 'missing_fields' },
+      { status: 400 },
+    )
   }
 
   await db
