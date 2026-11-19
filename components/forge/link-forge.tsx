@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { DomainPicker } from '@/components/forge/domain-picker'
 import type { LinkSummary } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
 import {
   Activity,
+  ArrowUpRight,
   Check,
   Copy,
   Link2,
@@ -17,23 +17,23 @@ import {
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
+interface LinkForgeProps {
+  investigationId?: string
+}
+
 const fetcher = <T,>(url: string) =>
-  fetch(url).then((res) => {
+  fetch(url).then(async (res) => {
     if (!res.ok) throw new Error('Falha ao carregar os links.')
     return res.json() as Promise<T>
   })
 
-type LinkForgeProps = {
-  investigationId?: string
-}
-
 export function LinkForge({ investigationId }: LinkForgeProps) {
-  const apiUrl = investigationId
+  const endpoint = investigationId
     ? `/api/links?investigationId=${encodeURIComponent(investigationId)}`
     : '/api/links'
 
   const { data, mutate } = useSWR<{ links: LinkSummary[] }>(
-    apiUrl,
+    endpoint,
     fetcher,
   )
 
@@ -61,8 +61,9 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
     }
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     setSaving(true)
     setError(null)
     setCreated(null)
@@ -70,13 +71,16 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
     try {
       const response = await fetch('/api/links', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           label,
           destination,
-          slug: alias,
+          slug: alias.trim().toLowerCase(),
           host,
-          investigationId: investigationId ?? null,
+          investigationId,
+          redirectMode: 'direct',
         }),
       })
 
@@ -87,25 +91,31 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
       }
 
       if (!response.ok || !payload.ok || !payload.link) {
+        const messages: Record<string, string> = {
+          invalid_destination:
+            'Destino inválido. Usa uma URL completa com https:// ou http://.',
+          slug_taken:
+            'Este alias já está em utilização. Escolhe outro.',
+          reserved_slug:
+            'Este alias está reservado pelo sistema.',
+          invalid_slug:
+            'Alias inválido. Usa letras minúsculas, números e hífen.',
+          unknown_host:
+            'O domínio escolhido já não está registado.',
+        }
+
         setError(
-          payload.error === 'invalid_destination'
-            ? 'Destino inválido. Use uma URL completa com http:// ou https://.'
-            : payload.error === 'slug_taken'
-              ? 'Este alias já está em uso. Escolhe outro.'
-              : payload.error === 'reserved_slug'
-                ? 'Este alias é reservado pelo sistema. Escolhe outro.'
-                : payload.error === 'invalid_slug'
-                  ? 'Alias inválido. Usa letras minúsculas, números e hífen, com 2 a 63 caracteres.'
-                  : payload.error === 'unknown_host'
-                    ? 'O domínio escolhido já não está registado. Escolhe outro.'
-                    : payload.error === 'investigation_not_found'
-                      ? 'A investigação selecionada não foi encontrada.'
-                      : 'Não foi possível criar o link. Verifique os campos.',
+          messages[payload.error ?? ''] ??
+            'Não foi possível criar o link. Verifica os campos.',
         )
         return
       }
 
-      setCreated({ ...payload.link, hits: 0 })
+      setCreated({
+        ...payload.link,
+        hits: 0,
+      })
+
       setLabel('')
       setDestination('')
       setAlias('')
@@ -122,7 +132,9 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
     try {
       const response = await fetch('/api/links', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           id: link.id,
           active: !link.active,
@@ -130,46 +142,56 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
       })
 
       if (!response.ok) {
-        setError('Não foi possível alterar o estado deste link.')
+        setError('Não foi possível atualizar o estado do link.')
         return
       }
 
-      setError(null)
       await mutate()
     } catch {
-      setError('Falha de rede ao alterar o estado do link.')
+      setError('Falha de rede ao atualizar o link.')
     }
   }
 
   const fallbackHost = origin.replace(/^https?:\/\//, '')
   const baseUrl = host ? `https://${host}` : origin
 
-  const shareUrl = `${baseUrl}/l/${alias.trim().toLowerCase() || '…'}`
+  const shareUrl = `${baseUrl}/l/${
+    alias.trim().toLowerCase() || '…'
+  }`
 
   const createdUrl = created
-    ? `${created.host ? `https://${created.host}` : origin}/l/${created.slug ?? created.id}`
+    ? `${created.host ? `https://${created.host}` : origin}/l/${
+        created.slug ?? created.id
+      }`
     : ''
 
   const links = data?.links ?? []
 
   return (
     <div className="grid gap-4 lg:grid-cols-5">
-      <form onSubmit={handleSubmit} className="lg:col-span-3">
+
+      {/* CRIAÇÃO DE LINKS */}
+
+      <form
+        onSubmit={handleSubmit}
+        className="lg:col-span-3"
+      >
         <div className="rounded-xl border border-border bg-card">
+
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-medium text-foreground">
-              Parâmetros do link
+              Link Forge
             </h2>
 
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {investigationId
-                ? 'Este link ficará associado à investigação actual.'
-                : 'Criação e gestão de links do WRAITH.'}
+              Configura, personaliza e gera links para as tuas operações.
             </p>
           </div>
 
           <div className="space-y-4 p-4">
+
             <div className="grid gap-4 sm:grid-cols-2">
+
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
                   Rótulo interno
@@ -199,15 +221,18 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
                 />
               </label>
+
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
                   Alias personalizado
                 </span>
 
                 <div className="mt-1.5 flex items-stretch overflow-hidden rounded-lg border border-input bg-background/60 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20">
+
                   <span className="flex items-center border-r border-border px-2.5 font-mono text-[11px] text-muted-foreground">
                     /l/
                   </span>
@@ -216,10 +241,11 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                     value={alias}
                     onChange={(e) => setAlias(e.target.value)}
                     maxLength={63}
-                    placeholder="promocao-xyz"
+                    placeholder="operacao-xyz"
                     aria-label="Alias personalizado"
                     className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
                   />
+
                 </div>
 
                 <span className="mt-1 block truncate font-mono text-[10px] text-muted-foreground/70">
@@ -233,6 +259,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                 </span>
 
                 <div className="mt-1.5 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/[0.06] p-2.5">
+
                   <Zap
                     className="mt-0.5 size-3.5 shrink-0 text-primary"
                     aria-hidden
@@ -240,17 +267,17 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
                   <span className="min-w-0">
                     <span className="block text-xs font-medium text-foreground">
-                      Imediato
+                      Direto
                     </span>
 
                     <span className="mt-0.5 block text-[10px] leading-snug text-muted-foreground/70">
-                      O utilizador segue directamente para o destino. Os registos
-                      técnicos de acesso devem respeitar a transparência e as
-                      autorizações aplicáveis.
+                      O visitante é encaminhado para o destino configurado.
                     </span>
                   </span>
+
                 </div>
               </div>
+
             </div>
 
             <DomainPicker
@@ -276,25 +303,31 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                 <Plus className="size-4" aria-hidden />
               )}
 
-              Gerar link
+              {saving ? 'A gerar...' : 'Gerar link'}
             </button>
+
           </div>
         </div>
       </form>
 
+      {/* PRÉ-VISUALIZAÇÃO */}
+
       <div className="space-y-4 lg:col-span-2">
+
         <div className="rounded-xl border border-border bg-card">
+
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-sm font-medium text-foreground">
-              Link que vais partilhar
+              Pré-visualização
             </h2>
 
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Pré-visualização do endereço gerado.
+              Endereço que será partilhado.
             </p>
           </div>
 
           <div className="p-4">
+
             <p className="font-mono text-[13px] leading-relaxed break-all text-foreground">
               {shareUrl}
             </p>
@@ -310,16 +343,20 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                 <Copy className="size-3" aria-hidden />
               )}
 
-              copiar link
+              Copiar link
             </button>
+
           </div>
         </div>
 
+        {/* LINK CRIADO */}
+
         {created && (
           <div className="animate-wraith-fade-up rounded-xl border border-accent/30 bg-accent/[0.06] p-4">
+
             <p className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.16em] text-accent uppercase">
               <Check className="size-3" aria-hidden />
-              Link gerado
+              Link gerado com sucesso
             </p>
 
             <p className="mt-2 font-mono text-[11px] break-all text-foreground/90">
@@ -327,6 +364,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
             </p>
 
             <div className="mt-3 flex gap-2">
+
               <button
                 type="button"
                 onClick={() => copy(createdUrl)}
@@ -338,7 +376,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   <Copy className="size-3" aria-hidden />
                 )}
 
-                copiar
+                Copiar
               </button>
 
               <a
@@ -348,43 +386,49 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[11px] text-foreground transition-colors hover:border-primary/40"
               >
                 <Link2 className="size-3" aria-hidden />
-                abrir
+                Abrir
               </a>
+
             </div>
           </div>
         )}
+
       </div>
 
+      {/* LINKS CRIADOS */}
+
       <div className="lg:col-span-5">
+
         <div className="mb-2 flex items-center justify-between">
+
           <h2 className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-            {investigationId
-              ? 'Links desta investigação'
-              : 'Links em circulação'}
+            Links em circulação
           </h2>
 
           <span className="font-mono text-[10px] text-muted-foreground">
             {links.length} total
           </span>
+
         </div>
 
-        {!data ? (
-          <div className="rounded-xl border border-border bg-card/40 px-6 py-10 text-center">
-            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
-            <p className="mt-2 text-xs text-muted-foreground">
-              A carregar links...
-            </p>
-          </div>
-        ) : links.length === 0 ? (
+        {links.length === 0 ? (
+
           <div className="rounded-xl border border-dashed border-border bg-card/40 px-6 py-10 text-center">
+            <Link2 className="mx-auto mb-3 size-6 text-muted-foreground/50" />
+
             <p className="text-sm text-muted-foreground">
-              {investigationId
-                ? 'Esta investigação ainda não tem links associados.'
-                : 'Nenhum link criado ainda. Gere o primeiro acima.'}
+              Ainda não existem links criados.
+            </p>
+
+            <p className="mt-1 text-xs text-muted-foreground/60">
+              Gera o teu primeiro link utilizando o formulário acima.
             </p>
           </div>
+
         ) : (
+
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+
             {links.map((link) => {
               const linkUrl = `${link.host ? `https://${link.host}` : origin}/l/${link.slug ?? link.id}`
 
@@ -393,15 +437,19 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   key={link.id}
                   className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]"
                 >
+
                   <span
                     className={cn(
                       'size-1.5 shrink-0 rounded-full',
-                      link.active ? 'bg-accent' : 'bg-muted-foreground/40',
+                      link.active
+                        ? 'bg-accent'
+                        : 'bg-muted-foreground/40',
                     )}
                     aria-hidden
                   />
 
                   <div className="min-w-0 flex-1">
+
                     <p className="truncate text-[13px] text-foreground">
                       {link.label}
                     </p>
@@ -409,20 +457,12 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                     <p className="truncate font-mono text-[10px] text-muted-foreground">
                       /l/{link.slug ?? link.id} → {link.destination}
                     </p>
+
                   </div>
 
                   <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                     {link.hits} hits
                   </span>
-
-                  <Link
-                    href={`/links/${encodeURIComponent(link.id)}`}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/10"
-                    aria-label={`Analisar link ${link.label}`}
-                  >
-                    <Activity className="size-3.5" aria-hidden />
-                    Analisar
-                  </Link>
 
                   <button
                     type="button"
@@ -436,6 +476,15 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                       <Copy className="size-3.5" aria-hidden />
                     )}
                   </button>
+
+                  <a
+                    href={`/links/${encodeURIComponent(link.id)}`}
+                    className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                    aria-label={`Analisar ${link.label}`}
+                    title="Analisar link"
+                  >
+                    <Activity className="size-3.5" aria-hidden />
+                  </a>
 
                   <button
                     type="button"
@@ -451,14 +500,30 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                         ? `Desativar ${link.label}`
                         : `Ativar ${link.label}`
                     }
+                    title={link.active ? 'Desativar' : 'Ativar'}
                   >
                     <Power className="size-3.5" aria-hidden />
                   </button>
+
+                  <a
+                    href={linkUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                    aria-label={`Abrir ${link.label}`}
+                    title="Abrir link"
+                  >
+                    <ArrowUpRight className="size-3.5" aria-hidden />
+                  </a>
+
                 </li>
               )
             })}
+
           </ul>
+
         )}
+
       </div>
     </div>
   )
