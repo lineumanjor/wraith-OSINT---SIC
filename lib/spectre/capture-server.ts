@@ -7,79 +7,88 @@ import { eq } from 'drizzle-orm'
 
 function str(value: unknown, max = 512): string | null {
   if (typeof value !== 'string') return null
+
   const trimmed = value.trim()
+
   if (!trimmed) return null
+
   return trimmed.slice(0, max)
-}
-
-function num(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
-function unquote(value: string | null): string | null {
-  if (!value) return null
-  const cleaned = value.replace(/^"|"$/g, '').trim()
-  return cleaned && cleaned !== '?' ? cleaned : null
 }
 
 type CaptureInput = {
   linkId: string
   headers: Headers
+
+  // Mantido para compatibilidade com chamadas existentes.
+  // Os dados de fingerprint não são guardados.
   fingerprint?: ClientFingerprint | null
+
   sessionId?: string | null
   referrerId?: string | null
 }
 
 /**
- * Grava a telemetria disponível nos cabeçalhos HTTP. É síncrono e local, para
- * que o redirecionamento não espere por serviços externos.
+ * Regista apenas os dados necessários para análise básica do acesso.
+ *
+ * Não armazena resolução do ecrã, GPU, memória, hardware,
+ * pixel ratio, touch points ou outras características de fingerprinting.
  */
 export async function recordCapture({
   linkId,
   headers,
-  fingerprint,
   sessionId,
   referrerId,
 }: CaptureInput): Promise<number | null> {
   const userAgent = headers.get('user-agent') ?? ''
   const parsed = parseUserAgent(userAgent)
-  const ip = clientIp(headers)
-  const referrer = headers.get('referer')
 
-  const hintPlatform = unquote(headers.get('sec-ch-ua-platform'))
-  const hintModel = unquote(headers.get('sec-ch-ua-model'))
-  const hintMobile = headers.get('sec-ch-ua-mobile')
-  const acceptLanguage = headers.get('accept-language')
+  // IP utilizado para geolocalização aproximada.
+  const ip = clientIp(headers)
+
+  // Origem do acesso, quando disponibilizada pelo navegador.
+  const referrer = headers.get('referer')
 
   const [row] = await db
     .insert(captures)
     .values({
       linkId,
+
       sessionId: str(sessionId, 64),
+
+      // Dados de rede
       ip,
-      userAgent: userAgent.slice(0, 1024) || null,
+
+      // Não guardar o User-Agent completo.
+      userAgent: null,
+
       referrer: referrer ? referrer.slice(0, 1024) : null,
-      referrerId: str(referrerId, 256),
-      platform: hintPlatform ?? parsed.platform,
-      os: parsed.os,
-      osVersion: parsed.osVersion || null,
-      browser: parsed.browser,
-      browserVersion: parsed.browserVersion || null,
-      engine: parsed.engine,
-      deviceType: hintMobile === '?1' ? 'mobile' : parsed.deviceType,
-      deviceModel: hintModel ?? parsed.deviceModel ?? null,
-      vendor: parsed.vendor || null,
-      screen: str(fingerprint?.screen, 32),
-      viewport: str(fingerprint?.viewport, 32),
-      pixelRatio: num(fingerprint?.pixelRatio),
-      colorDepth: num(fingerprint?.colorDepth),
-      hardwareConcurrency: num(fingerprint?.hardwareConcurrency),
-      deviceMemory: num(fingerprint?.deviceMemory),
-      timezone: str(fingerprint?.timezone, 64),
-      languages: str(fingerprint?.languages ?? acceptLanguage, 128),
-      touchPoints: num(fingerprint?.touchPoints),
-      gpu: str(fingerprint?.gpu, 256),
-      connection: str(fingerprint?.connection, 64),
+      referrerId: str(referrerId, 200),
+
+      // Informações básicas do navegador e dispositivo.
+      platform: str(parsed.platform, 100),
+      os: str(parsed.os, 100),
+      osVersion: str(parsed.osVersion, 50),
+      browser: str(parsed.browser, 100),
+      browserVersion: str(parsed.browserVersion, 50),
+      engine: str(parsed.engine, 100),
+      deviceType: str(parsed.deviceType, 50),
+
+      // Características adicionais não recolhidas.
+      deviceModel: null,
+      vendor: null,
+      screen: null,
+      viewport: null,
+      pixelRatio: null,
+      colorDepth: null,
+      hardwareConcurrency: null,
+      deviceMemory: null,
+      timezone: null,
+      languages: null,
+      touchPoints: null,
+      gpu: null,
+      connection: null,
+
+      // Classificação técnica baseada no User-Agent.
       isBot: parsed.isBot,
     })
     .returning({ id: captures.id })
@@ -88,11 +97,18 @@ export async function recordCapture({
 }
 
 /**
- * Completa a geolocalização depois de a resposta já ter sido enviada, para não
- * atrasar o salto para o destino.
+ * Enriquece o registo com localização geográfica aproximada
+ * a partir do IP, depois da recolha autorizada.
  */
-export async function enrichCaptureGeo(captureId: number, ip: string | null) {
+export async function enrichCaptureGeo(
+  captureId: number,
+  ip: string | null,
+) {
+  if (!ip) return
+
   const geo = await lookupIp(ip)
+
+  if (!geo) return
 
   await db
     .update(captures)
