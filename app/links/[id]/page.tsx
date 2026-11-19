@@ -82,10 +82,12 @@ function StatCard({
   )
 }
 
-export default async function LinkAnalysisPage({ params }: PageProps) {
+export default async function LinkAnalysisPage({
+  params,
+}: PageProps) {
   const { id } = await params
 
-  // 1. Procurar o link solicitado
+  // Procurar link
   const [link] = await db
     .select()
     .from(links)
@@ -96,13 +98,17 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
     notFound()
   }
 
-  // 2. Estatísticas e actividade associadas exclusivamente a este link
-  const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  // Período das últimas 24 horas
+  const last24Hours = new Date(
+    Date.now() - 24 * 60 * 60 * 1000,
+  )
 
+  // Consultar estatísticas e actividade
   const [
     [totalResult],
     [recentResult],
     [botResult],
+    [nonBotResult],
     [investigation],
     activity,
   ] = await Promise.all([
@@ -131,11 +137,23 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
         ),
       ),
 
+    db
+      .select({ total: count() })
+      .from(captures)
+      .where(
+        and(
+          eq(captures.linkId, link.id),
+          eq(captures.isBot, false),
+        ),
+      ),
+
     link.investigationId
       ? db
           .select()
           .from(investigations)
-          .where(eq(investigations.id, link.investigationId))
+          .where(
+            eq(investigations.id, link.investigationId),
+          )
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
@@ -158,9 +176,9 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
   const total = totalResult?.total ?? 0
   const recent = recentResult?.total ?? 0
   const bots = botResult?.total ?? 0
+  const nonBots = nonBotResult?.total ?? 0
 
-  const humanEvents = Math.max(0, total - bots)
-
+  // Estatísticas dos últimos 30 registos apresentados
   const mobileEvents = activity.filter(
     (item) =>
       item.deviceType?.toLowerCase() === 'mobile' ||
@@ -171,8 +189,9 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
     ? Math.round((mobileEvents / activity.length) * 100)
     : 0
 
+  // Construção correcta do endereço público
   const publicAddress = link.slug
-    ? `${link.host ? `https://${link.host}` : ''}/${link.slug}`
+    ? `${link.host ? `https://${link.host}` : ''}/l/${link.slug}`
     : null
 
   return (
@@ -191,7 +210,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
 
             <span>/</span>
 
-            {investigation ? (
+            {investigation && (
               <>
                 <Link
                   href={`/cases/${investigation.id}`}
@@ -199,11 +218,14 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                 >
                   {investigation.name}
                 </Link>
+
                 <span>/</span>
               </>
-            ) : null}
+            )}
 
-            <span className="text-foreground">Análise do link</span>
+            <span className="text-foreground">
+              Análise do link
+            </span>
           </div>
 
           <Link
@@ -219,7 +241,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
           </Link>
         </div>
 
-        {/* Cabeçalho do link */}
+        {/* Cabeçalho */}
         <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
             <div className="flex items-start gap-4">
@@ -255,19 +277,10 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {link.active ? (
-                <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-500">
-                  <Power className="size-3.5" />
-                  Link operacional
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
-                  <Power className="size-3.5" />
-                  Link inactivo
-                </span>
-              )}
-            </div>
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+              <Power className="size-3.5" />
+              {link.active ? 'Link operacional' : 'Link inactivo'}
+            </span>
           </div>
 
           <div className="mt-6 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
@@ -305,10 +318,11 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* Estatísticas */}
+        {/* Indicadores */}
         <section>
           <div className="mb-3 flex items-center gap-2">
             <Activity className="size-4 text-primary" />
+
             <h2 className="text-sm font-semibold">
               Indicadores de actividade
             </h2>
@@ -330,9 +344,9 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
             />
 
             <StatCard
-              label="Registos não classificados como bots"
-              value={humanEvents}
-              description="Não significa identificação de pessoas"
+              label="Não classificados como bots"
+              value={nonBots}
+              description="Não confirma identidade humana"
               icon={ShieldCheck}
             />
 
@@ -345,12 +359,13 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* Informações técnicas */}
+        {/* Ambiente técnico */}
         <section className="grid gap-4 lg:grid-cols-2">
 
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5 flex items-center gap-2">
               <MonitorSmartphone className="size-4 text-primary" />
+
               <h2 className="text-sm font-semibold">
                 Ambiente técnico
               </h2>
@@ -370,7 +385,9 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${mobilePercentage}%` }}
+                  style={{
+                    width: `${mobilePercentage}%`,
+                  }}
                 />
               </div>
 
@@ -383,6 +400,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5 flex items-center gap-2">
               <Terminal className="size-4 text-primary" />
+
               <h2 className="text-sm font-semibold">
                 Configuração
               </h2>
@@ -393,6 +411,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                 <span className="text-xs text-muted-foreground">
                   Modo de redireccionamento
                 </span>
+
                 <span className="rounded-md bg-muted px-2 py-1 text-xs">
                   {link.redirectMode}
                 </span>
@@ -402,6 +421,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                 <span className="text-xs text-muted-foreground">
                   Estilo de pré-visualização
                 </span>
+
                 <span className="rounded-md bg-muted px-2 py-1 text-xs">
                   {link.previewStyle}
                 </span>
@@ -411,6 +431,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                 <span className="text-xs text-muted-foreground">
                   Host configurado
                 </span>
+
                 <span className="max-w-[180px] truncate text-xs">
                   {link.host || 'Padrão'}
                 </span>
@@ -420,6 +441,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                 <span className="text-xs text-muted-foreground">
                   Data de criação
                 </span>
+
                 <span className="text-xs">
                   {formatDate(link.createdAt)}
                 </span>
@@ -432,6 +454,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <Target className="size-4 text-primary" />
+
             <h2 className="text-sm font-semibold">
               Contexto da investigação
             </h2>
@@ -467,6 +490,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
             <div>
               <div className="flex items-center gap-2">
                 <CalendarDays className="size-4 text-primary" />
+
                 <h2 className="text-sm font-semibold">
                   Registos de actividade
                 </h2>
@@ -522,6 +546,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center gap-2 text-xs">
                           <Smartphone className="size-3.5 text-muted-foreground" />
+
                           {getDeviceLabel(item.deviceType)}
                         </span>
                       </td>
@@ -535,14 +560,18 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
                       </td>
 
                       <td className="px-5 py-4">
-                        {item.isBot ? (
+                        {item.isBot === true ? (
                           <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] text-amber-500">
                             Possível bot
                           </span>
-                        ) : (
+                        ) : item.isBot === false ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-500">
                             <CheckCircle2 className="size-3" />
                             Não classificado como bot
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground">
+                            Não classificado
                           </span>
                         )}
                       </td>
@@ -569,7 +598,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
           )}
         </section>
 
-        {/* Nota de privacidade */}
+        {/* Privacidade */}
         <footer className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-4">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
 
@@ -581,6 +610,7 @@ export default async function LinkAnalysisPage({ params }: PageProps) {
             autorizações necessárias.
           </p>
         </footer>
+
       </div>
     </main>
   )
