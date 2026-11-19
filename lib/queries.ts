@@ -11,6 +11,7 @@ import type {
 } from '@/lib/spectre/types'
 import { desc, eq, or, sql } from 'drizzle-orm'
 
+// Serialização dos registos de captura
 function serializeCapture(
   row: typeof captures.$inferSelect,
   linkLabel: string | null,
@@ -22,17 +23,26 @@ function serializeCapture(
   }
 }
 
-export async function getCaptures(limit = 150): Promise<Capture[]> {
+// Obter capturas
+export async function getCaptures(
+  limit = 150,
+): Promise<Capture[]> {
   const rows = await db
-    .select({ capture: captures, linkLabel: links.label })
+    .select({
+      capture: captures,
+      linkLabel: links.label,
+    })
     .from(captures)
     .leftJoin(links, eq(captures.linkId, links.id))
     .orderBy(desc(captures.createdAt))
     .limit(limit)
 
-  return rows.map((row) => serializeCapture(row.capture, row.linkLabel))
+  return rows.map(({ capture, linkLabel }) =>
+    serializeCapture(capture, linkLabel),
+  )
 }
 
+// Obter links, opcionalmente filtrados por investigação
 export async function getLinks(
   investigationId?: string,
 ): Promise<LinkSummary[]> {
@@ -46,7 +56,7 @@ export async function getLinks(
     .where(
       investigationId
         ? eq(links.investigationId, investigationId)
-        : sql`true`,
+        : undefined,
     )
     .groupBy(links.id)
     .orderBy(desc(links.createdAt))
@@ -69,18 +79,28 @@ export async function getLinks(
   }))
 }
 
+// Obter um link através do alias ou ID
 export async function getLink(slugOrId: string) {
   const [row] = await db
     .select()
     .from(links)
-    .where(or(eq(links.slug, slugOrId), eq(links.id, slugOrId)))
+    .where(
+      or(
+        eq(links.slug, slugOrId),
+        eq(links.id, slugOrId),
+      ),
+    )
     .limit(1)
 
   return row ?? null
 }
 
+// Obter domínios registados
 export async function getDomains(): Promise<DomainSummary[]> {
-  const rows = await db.select().from(domains).orderBy(desc(domains.createdAt))
+  const rows = await db
+    .select()
+    .from(domains)
+    .orderBy(desc(domains.createdAt))
 
   return rows.map((row) => ({
     id: row.id,
@@ -90,25 +110,46 @@ export async function getDomains(): Promise<DomainSummary[]> {
   }))
 }
 
-function buildStats(all: Capture[], linkList: LinkSummary[]): DashboardStats {
+// Construir estatísticas do painel
+function buildStats(
+  all: Capture[],
+  linkList: LinkSummary[],
+): DashboardStats {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-  const countries = new Set(all.map((c) => c.countryCode).filter(Boolean))
+
+  const countries = new Set(
+    all
+      .map((capture) => capture.countryCode)
+      .filter(Boolean),
+  )
+
   const mobile = all.filter(
-    (c) => c.deviceType === 'mobile' || c.deviceType === 'tablet',
+    (capture) =>
+      capture.deviceType === 'mobile' ||
+      capture.deviceType === 'tablet',
   ).length
 
   return {
     total: all.length,
+
     last24h: all.filter(
-      (c) => new Date(c.createdAt).getTime() > dayAgo,
+      (capture) =>
+        new Date(capture.createdAt).getTime() > dayAgo,
     ).length,
+
     countries: countries.size,
-    mobileShare: all.length ? Math.round((mobile / all.length) * 100) : 0,
-    bots: all.filter((c) => c.isBot).length,
-    activeLinks: linkList.filter((l) => l.active).length,
+
+    mobileShare: all.length
+      ? Math.round((mobile / all.length) * 100)
+      : 0,
+
+    bots: all.filter((capture) => capture.isBot).length,
+
+    activeLinks: linkList.filter((link) => link.active).length,
   }
 }
 
+// Obter dados do painel operacional
 export async function getDashboardData(): Promise<DashboardData> {
   const [captureList, linkList] = await Promise.all([
     getCaptures(),
