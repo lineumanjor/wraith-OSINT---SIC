@@ -33,7 +33,9 @@ export async function getCaptures(limit = 150): Promise<Capture[]> {
   return rows.map((row) => serializeCapture(row.capture, row.linkLabel))
 }
 
-export async function getLinks(): Promise<LinkSummary[]> {
+export async function getLinks(
+  investigationId?: string,
+): Promise<LinkSummary[]> {
   const rows = await db
     .select({
       link: links,
@@ -41,6 +43,11 @@ export async function getLinks(): Promise<LinkSummary[]> {
     })
     .from(links)
     .leftJoin(captures, eq(captures.linkId, links.id))
+    .where(
+      investigationId
+        ? eq(links.investigationId, investigationId)
+        : sql`true`,
+    )
     .groupBy(links.id)
     .orderBy(desc(links.createdAt))
 
