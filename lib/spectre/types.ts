@@ -1,4 +1,11 @@
-export type PreviewStyle = 'messaging' | 'cloud' | 'marketplace'
+export type PreviewStyle =
+  | 'messaging'
+  | 'cloud'
+  | 'marketplace'
+
+export type RedirectMode =
+  | 'preview'
+  | 'direct'
 
 export type Capture = {
   id: number
@@ -6,32 +13,39 @@ export type Capture = {
   linkLabel: string | null
   sessionId: string | null
   createdAt: string
+
   ip: string | null
   asn: string | null
   asOrg: string | null
   operator: string | null
+
   country: string | null
   countryCode: string | null
   region: string | null
   city: string | null
   latitude: number | null
   longitude: number | null
+
   userAgent: string | null
   referrer: string | null
   referrerId: string | null
+
   platform: string | null
   os: string | null
   osVersion: string | null
   browser: string | null
   browserVersion: string | null
   engine: string | null
+
   deviceType: string | null
   deviceModel: string | null
   vendor: string | null
+
   screen: string | null
   viewport: string | null
   pixelRatio: number | null
   colorDepth: number | null
+
   hardwareConcurrency: number | null
   deviceMemory: number | null
   timezone: string | null
@@ -39,11 +53,10 @@ export type Capture = {
   touchPoints: number | null
   gpu: string | null
   connection: string | null
+
   investigationId: string | null
   isBot: boolean | null
 }
-
-export type RedirectMode = 'preview' | 'direct'
 
 export type DomainSummary = {
   id: string
@@ -56,13 +69,20 @@ export type LinkSummary = {
   id: string
   label: string
   destination: string
+
   slug: string | null
   host: string | null
+
+  // Associação à investigação
+  investigationId: string | null
+
   redirectMode: RedirectMode
   previewStyle: PreviewStyle
+
   previewTitle: string | null
   previewDescription: string | null
   previewSource: string | null
+
   active: boolean
   createdAt: string
   hits: number
