@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { domains, links } from '@/lib/db/schema'
+import { domains, investigations, links } from '@/lib/db/schema'
 import { getLinks } from '@/lib/queries'
 import type { PreviewStyle, RedirectMode } from '@/lib/spectre/types'
 import { eq } from 'drizzle-orm'
@@ -55,11 +55,15 @@ function clean(value: unknown, max: number): string | null {
 }
 
 export async function GET() {
-  return Response.json({ links: await getLinks() }, { headers: { 'Cache-Control': 'no-store' } })
+  return Response.json(
+    { links: await getLinks() },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
 }
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>
+
   try {
     body = (await request.json()) as Record<string, unknown>
   } catch {
@@ -74,13 +78,32 @@ export async function POST(request: Request) {
   const mode = MODES.includes(body.redirectMode as RedirectMode)
     ? (body.redirectMode as RedirectMode)
     : 'direct'
+
   const { slug, error: slugError } = parseSlug(body.slug)
   const requestedHost = clean(body.host, 253)?.toLowerCase() ?? null
+  const investigationId = clean(body.investigationId, 100)
 
   if (slugError) {
     return Response.json({ ok: false, error: slugError }, { status: 400 })
   }
 
+  // Validar investigação associada
+  if (investigationId) {
+    const [investigation] = await db
+      .select({ id: investigations.id })
+      .from(investigations)
+      .where(eq(investigations.id, investigationId))
+      .limit(1)
+
+    if (!investigation) {
+      return Response.json(
+        { ok: false, error: 'investigation_not_found' },
+        { status: 404 },
+      )
+    }
+  }
+
+  // Validar domínio
   if (requestedHost) {
     const [known] = await db
       .select({ id: domains.id })
@@ -97,7 +120,9 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 })
   }
 
+  // Validar destino
   let normalized: URL
+
   try {
     normalized = new URL(destination)
   } catch {
@@ -108,6 +133,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'invalid_protocol' }, { status: 400 })
   }
 
+  // Verificar alias
   if (slug) {
     const [taken] = await db
       .select({ id: links.id })
@@ -130,6 +156,7 @@ export async function POST(request: Request) {
       destination: normalized.toString(),
       slug,
       host: requestedHost,
+      investigationId,
       redirectMode: mode,
       previewStyle: style,
       previewTitle: clean(body.previewTitle, 160),
@@ -143,6 +170,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   let body: { id?: string; active?: boolean }
+
   try {
     body = (await request.json()) as { id?: string; active?: boolean }
   } catch {
@@ -153,6 +181,10 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, error: 'missing_fields' }, { status: 400 })
   }
 
-  await db.update(links).set({ active: body.active }).where(eq(links.id, body.id))
+  await db
+    .update(links)
+    .set({ active: body.active })
+    .where(eq(links.id, body.id))
+
   return Response.json({ ok: true })
 }
