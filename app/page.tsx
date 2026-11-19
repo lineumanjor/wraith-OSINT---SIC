@@ -1,15 +1,10 @@
 import { AppShell } from '@/components/app-shell'
-import { Dashboard } from '@/components/dashboard/dashboard'
-import { getDashboardData } from '@/lib/queries'
+import { CaseIndex } from '@/components/cases/case-index'
 
-export const dynamic = 'force-dynamic'
-
-export default async function Page() {
-  const data = await getDashboardData()
-
+export default function Page() {
   return (
     <AppShell>
-      <Dashboard initial={data} />
+      <CaseIndex />
     </AppShell>
   )
 }
