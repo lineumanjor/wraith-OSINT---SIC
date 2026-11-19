@@ -39,6 +39,7 @@ export type Capture = {
   touchPoints: number | null
   gpu: string | null
   connection: string | null
+  investigationId: string | null
   isBot: boolean | null
 }
 
