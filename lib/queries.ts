@@ -50,6 +50,7 @@ export async function getLinks(): Promise<LinkSummary[]> {
     destination: link.destination,
     slug: link.slug,
     host: link.host,
+    investigationId: link.investigationId,
     redirectMode: link.redirectMode as RedirectMode,
     previewStyle: link.previewStyle as PreviewStyle,
     previewTitle: link.previewTitle,
@@ -67,11 +68,13 @@ export async function getLink(slugOrId: string) {
     .from(links)
     .where(or(eq(links.slug, slugOrId), eq(links.id, slugOrId)))
     .limit(1)
+
   return row ?? null
 }
 
 export async function getDomains(): Promise<DomainSummary[]> {
   const rows = await db.select().from(domains).orderBy(desc(domains.createdAt))
+
   return rows.map((row) => ({
     id: row.id,
     hostname: row.hostname,
@@ -83,11 +86,15 @@ export async function getDomains(): Promise<DomainSummary[]> {
 function buildStats(all: Capture[], linkList: LinkSummary[]): DashboardStats {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   const countries = new Set(all.map((c) => c.countryCode).filter(Boolean))
-  const mobile = all.filter((c) => c.deviceType === 'mobile' || c.deviceType === 'tablet').length
+  const mobile = all.filter(
+    (c) => c.deviceType === 'mobile' || c.deviceType === 'tablet',
+  ).length
 
   return {
     total: all.length,
-    last24h: all.filter((c) => new Date(c.createdAt).getTime() > dayAgo).length,
+    last24h: all.filter(
+      (c) => new Date(c.createdAt).getTime() > dayAgo,
+    ).length,
     countries: countries.size,
     mobileShare: all.length ? Math.round((mobile / all.length) * 100) : 0,
     bots: all.filter((c) => c.isBot).length,
@@ -96,7 +103,11 @@ function buildStats(all: Capture[], linkList: LinkSummary[]): DashboardStats {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const [captureList, linkList] = await Promise.all([getCaptures(), getLinks()])
+  const [captureList, linkList] = await Promise.all([
+    getCaptures(),
+    getLinks(),
+  ])
+
   return {
     captures: captureList,
     links: linkList,
