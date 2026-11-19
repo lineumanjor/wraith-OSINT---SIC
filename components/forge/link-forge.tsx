@@ -1,9 +1,19 @@
 'use client'
 
+import Link from 'next/link'
 import { DomainPicker } from '@/components/forge/domain-picker'
 import type { LinkSummary } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
-import { Check, Copy, Link2, Loader2, Plus, Power, Zap } from 'lucide-react'
+import {
+  Activity,
+  Check,
+  Copy,
+  Link2,
+  Loader2,
+  Plus,
+  Power,
+  Zap,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
@@ -404,6 +414,15 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                     {link.hits} hits
                   </span>
+
+                  <Link
+                    href={`/links/${encodeURIComponent(link.id)}`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/10"
+                    aria-label={`Analisar link ${link.label}`}
+                  >
+                    <Activity className="size-3.5" aria-hidden />
+                    Analisar
+                  </Link>
 
                   <button
                     type="button"
