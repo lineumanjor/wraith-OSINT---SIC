@@ -20,6 +20,8 @@ import {
 import { and, count, desc, eq, gte } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
+import { getAuthorizedSession } from '@/lib/auth-guard'
+import { redirect } from 'next/navigation'
 import {
   captures,
   investigations,
@@ -85,6 +87,7 @@ function StatCard({
 export default async function LinkAnalysisPage({
   params,
 }: PageProps) {
+  if (!(await getAuthorizedSession())) redirect('/sign-in')
   const { id } = await params
 
   // Procurar link
