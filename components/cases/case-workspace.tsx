@@ -257,4 +257,17 @@ export function CaseWorkspace({ caseId }: { caseId: string }) {
                   <li key={item.kind} className="flex items-center gap-2">
                     <span className="w-24 shrink-0 truncate text-xs text-muted-foreground">
                       {ENTITY_KIND_LABEL[item.kind]}
-                    </span
+                    </span>
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {item.count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}
