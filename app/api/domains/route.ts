@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { domains } from '@/lib/db/schema'
 import { getDomains } from '@/lib/queries'
 import { eq } from 'drizzle-orm'
+import { requireApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +13,8 @@ function makeId() {
 }
 
 export async function GET() {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   return Response.json(
     { domains: await getDomains() },
     { headers: { 'Cache-Control': 'no-store' } },
@@ -19,6 +22,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   let body: { hostname?: unknown }
   try {
     body = (await request.json()) as { hostname?: unknown }
@@ -59,6 +64,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   let body: { id?: unknown; verified?: unknown }
   try {
     body = (await request.json()) as { id?: unknown; verified?: unknown }
@@ -75,6 +82,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   let body: { id?: unknown }
   try {
     body = (await request.json()) as { id?: unknown }

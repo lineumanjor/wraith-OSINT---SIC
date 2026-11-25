@@ -3,6 +3,7 @@ import type { LocationSource } from '@/lib/sandbox/types'
 import { clientIp, lookupIp } from '@/lib/spectre/geo'
 import { parseUserAgent } from '@/lib/spectre/ua'
 import type { NextRequest } from 'next/server'
+import { requireApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,11 +26,15 @@ function makeId(): string {
 }
 
 export async function GET() {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   const sessions = await listSessions()
   return Response.json({ sessions })
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireApiAuth()
+  if (denied) return denied
   let body: Record<string, unknown> | null = null
   try {
     body = (await request.json()) as Record<string, unknown>
