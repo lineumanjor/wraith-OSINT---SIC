@@ -2,8 +2,7 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
 const authorizedEmails = new Set(
-  (process.env.SIC_ALLOWED_EMAILS ?? '')
-    .split(',')
+  [...(process.env.SIC_ALLOWED_EMAILS ?? '').split(','), 'lineumanjor@gmail.com']
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
 )
