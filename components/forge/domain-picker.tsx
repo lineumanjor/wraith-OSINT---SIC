@@ -192,7 +192,7 @@ export function DomainPicker({ value, onChange, fallbackHost }: Props) {
               maxLength={253}
               placeholder="links.a-minha-marca.pt"
               aria-label="Novo domínio"
-              className="min-w-0 flex-1 rounded-md border border-input bg-background/60 px-2.5 py-1.5 font-mono text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+              className="min-w-0 flex-1 rounded-md border border-input bg-background/60 px-2.5 py-1.5 font-mono text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
             />
             <button
               type="button"

@@ -184,13 +184,13 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
   const links = data?.links ?? []
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-5">
 
       {/* CRIAÇÃO DE LINKS */}
 
       <form
         onSubmit={handleSubmit}
-        className="lg:col-span-3"
+        className="min-w-0 xl:col-span-3"
       >
         <div className="rounded-xl border border-border bg-card">
 
@@ -206,7 +206,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
 
           <div className="space-y-4 p-4">
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -219,7 +219,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
                   required
                   maxLength={120}
                   placeholder="Operação Vértice — onda 1"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
                 />
               </label>
 
@@ -234,13 +234,13 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
                   required
                   type="url"
                   placeholder="https://exemplo.org/documento"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-xs"
                 />
               </label>
 
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -251,7 +251,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
                   onChange={(e) => setPreviewTitle(e.target.value)}
                   maxLength={160}
                   placeholder={label || 'Título que acompanha o link'}
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
                 />
               </label>
 
@@ -264,12 +264,12 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
                   onChange={(e) => setPreviewDescription(e.target.value)}
                   maxLength={320}
                   placeholder="Descrição curta e transparente do destino"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
                 />
               </label>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -288,7 +288,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
                     maxLength={63}
                     placeholder="operacao-xyz"
                     aria-label="Alias personalizado"
-                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-base text-foreground placeholder:text-muted-foreground/50 focus:outline-none sm:text-xs"
                   />
 
                 </div>
@@ -357,7 +357,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
 
       {/* PRÉ-VISUALIZAÇÃO */}
 
-      <div className="space-y-4 lg:col-span-2">
+      <div className="min-w-0 space-y-4 xl:col-span-2">
 
         <div className="rounded-xl border border-border bg-card">
 
@@ -448,7 +448,7 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
 
       {/* LINKS CRIADOS */}
 
-      <div className="lg:col-span-5">
+      <div className="min-w-0 xl:col-span-5">
 
         <div className="mb-2 flex items-center justify-between">
 
