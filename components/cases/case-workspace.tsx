@@ -143,8 +143,14 @@ export function CaseWorkspace({ caseId }: { caseId: string }) {
             {investigation.name}
           </h1>
 
-          {investigation.description && (
+          {investigation.objective && (
             <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Objetivo:</span>{' '}
+              {investigation.objective}
+            </p>
+          )}
+          {investigation.description && (
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground/80">
               {investigation.description}
             </p>
           )}

@@ -23,7 +23,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (denied) return denied
   const { id } = await params
 
-  let body: { name?: string; description?: string; status?: string; priority?: string }
+  let body: { name?: string; objective?: string; description?: string; status?: string; priority?: string }
   try {
     body = await request.json()
   } catch {
@@ -36,6 +36,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const name = body.name.trim()
     if (name.length < 3) return Response.json({ error: 'nome demasiado curto' }, { status: 400 })
     patch.name = name.slice(0, 160)
+  }
+  if (typeof body.objective === 'string') {
+    patch.objective = body.objective.trim().slice(0, 1000) || null
   }
   if (typeof body.description === 'string') {
     patch.description = body.description.trim().slice(0, 4000) || null

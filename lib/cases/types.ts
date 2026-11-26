@@ -82,6 +82,7 @@ export type EntityLink = {
 export type Investigation = {
   id: string
   name: string
+  objective: string | null
   description: string | null
   status: CaseStatus
   priority: CasePriority

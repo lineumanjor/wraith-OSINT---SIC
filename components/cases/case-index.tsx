@@ -32,6 +32,7 @@ export function CaseIndex() {
   const { data, isLoading, mutate } = useSWR<{ cases: InvestigationSummary[] }>('/api/cases', fetcher)
 
   const [name, setName] = useState('')
+  const [objective, setObjective] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<CasePriority>('normal')
   const [submitting, setSubmitting] = useState(false)
@@ -59,12 +60,13 @@ export function CaseIndex() {
       const res = await fetch('/api/cases', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, description, priority }),
+        body: JSON.stringify({ name, objective, description, priority }),
       })
       const payload = await res.json()
       if (!res.ok) throw new Error(payload.error ?? 'não foi possível criar a investigação')
 
       setName('')
+      setObjective('')
       setDescription('')
       setPriority('normal')
       await mutate()
@@ -132,17 +134,37 @@ export function CaseIndex() {
 
               <div>
                 <label
+                  htmlFor="case-objective"
+                  className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                >
+                  Objetivo da investigação
+                </label>
+                <textarea
+                  id="case-objective"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
+                  placeholder="O que pretende esclarecer ou documentar?"
+                  rows={3}
+                  maxLength={1000}
+                  required
+                  minLength={5}
+                  className={cn(inputClass, 'resize-y')}
+                />
+              </div>
+
+              <div>
+                <label
                   htmlFor="case-description"
                   className="mb-1.5 block text-xs font-medium text-muted-foreground"
                 >
-                  Descrição
+                  Descrição adicional <span className="font-normal text-muted-foreground/70">(opcional)</span>
                 </label>
                 <textarea
                   id="case-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Objeto da investigação, âmbito, hipótese inicial…"
-                  rows={4}
+                  placeholder="Âmbito, contexto inicial ou notas de enquadramento…"
+                  rows={3}
                   maxLength={4000}
                   className={cn(inputClass, 'resize-y')}
                 />
@@ -246,8 +268,14 @@ export function CaseIndex() {
                             {CASE_PRIORITY_LABEL[item.priority]}
                           </span>
                         </div>
-                        {item.description && (
+                        {item.objective && (
                           <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            <span className="font-medium text-foreground/80">Objetivo:</span>{' '}
+                            {item.objective}
+                          </p>
+                        )}
+                        {item.description && (
+                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground/80">
                             {item.description}
                           </p>
                         )}
