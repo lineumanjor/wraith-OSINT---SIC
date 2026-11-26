@@ -284,18 +284,20 @@ export function PreviewStudio() {
                   <span className="font-mono text-[9px] text-neutral-500">Prévia de template</span>
                   <span className="font-mono text-[9px] text-neutral-500">fundo marfim</span>
                 </div>
-                <div className="flex min-h-[19rem] items-center justify-center p-4">
-                  <p className="text-xs text-neutral-400">Espaço reservado para o conteúdo do seu template.</p>
-                </div>
-                <div className="border-t border-neutral-200 bg-[#fffdf5] p-4">
-                  <p className="mb-2 font-mono text-[9px] tracking-[0.14em] text-neutral-500 uppercase">Prévia do seu HTML</p>
+                <div className="min-h-[19rem] bg-[#fffdf5] p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="font-mono text-[9px] tracking-[0.14em] text-neutral-500 uppercase">Pré-visualização em tempo real</p>
+                    <span className="rounded-full border border-neutral-200 px-2 py-0.5 font-mono text-[9px] text-neutral-500">{frame === 'mobile' ? '390 px' : 'largura flexível'}</span>
+                  </div>
                   <iframe
-                    title="Prévia segura do template HTML"
+                    title="Prévia segura e atualizada do template HTML"
                     sandbox=""
-                    srcDoc={`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;padding:12px;font:14px system-ui,sans-serif;color:#26251f}article,section,div{max-width:100%}h1,h2,h3,p{margin:0 0 8px}small{color:#6b675d}</style></head><body>${safeTemplate}</body></html>`}
-                    className="min-h-32 w-full rounded-lg border border-neutral-200 bg-[#fffdf5]"
+                    srcDoc={`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box}html,body{min-height:100%;width:100%}body{margin:0;padding:12px;font:14px/1.5 system-ui,sans-serif;color:#26251f;overflow-wrap:anywhere}article,section,div{max-width:100%}h1,h2,h3,p{margin:0 0 8px}small{color:#6b675d}</style></head><body>${safeTemplate}</body></html>`}
+                    className="block min-h-[17rem] w-full rounded-lg border border-neutral-200 bg-white"
                     referrerPolicy="no-referrer"
+                    loading="eager"
                   />
+                  {!safeTemplate && <p className="mt-2 text-[11px] text-neutral-500">Adicione conteúdo às tags permitidas para visualizar o resultado.</p>}
                 </div>
               </div>
             </div>
