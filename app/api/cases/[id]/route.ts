@@ -3,15 +3,12 @@ import { CASE_PRIORITY, CASE_STATUS } from '@/lib/cases/types'
 import { db } from '@/lib/db'
 import { investigations } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { requireApiAuth } from '@/lib/api-auth'
 
 export const runtime = 'nodejs'
 
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, { params }: Params) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { id } = await params
   const detail = await getCaseDetail(id)
   if (!detail) return Response.json({ error: 'investigação não encontrada' }, { status: 404 })
@@ -19,8 +16,6 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { id } = await params
 
   let body: { name?: string; objective?: string; description?: string; status?: string; priority?: string }
@@ -61,8 +56,6 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { id } = await params
   await db.delete(investigations).where(eq(investigations.id, id))
   return Response.json({ ok: true })

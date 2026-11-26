@@ -1,6 +1,5 @@
 import { isDnsType, isIpAddress, lookupAddress, resolveDns } from '@/lib/osint/network'
 import { enumerateUsername, PLATFORMS } from '@/lib/osint/sherlock'
-import { requireApiAuth } from '@/lib/api-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -18,8 +17,6 @@ function line(payload: unknown): string {
 }
 
 export async function POST(request: Request) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   let body: Body
   try {
     body = (await request.json()) as Body

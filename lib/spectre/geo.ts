@@ -137,7 +137,7 @@ export function clientIp(headers: Headers): string | null {
   ]
 
   for (const candidate of candidates) {
-    const ip = validIp(candidate)
+    const ip = validIp(candidate ?? null)
 
     if (ip) return ip
   }

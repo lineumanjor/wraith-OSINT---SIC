@@ -2,8 +2,6 @@ import { AppShell } from '@/components/app-shell'
 import { SandboxMonitor } from '@/components/sandbox/sandbox-monitor'
 import { buttonVariants } from '@/components/ui/button'
 import { listSessions } from '@/lib/sandbox/queries'
-import { getAuthorizedSession } from '@/lib/auth-guard'
-import { redirect } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -15,7 +13,6 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
-  if (!(await getAuthorizedSession())) redirect('/sign-in')
   const sessions = await listSessions()
 
   return (

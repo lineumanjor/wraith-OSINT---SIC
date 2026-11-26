@@ -42,6 +42,8 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
   const [host, setHost] = useState<string | null>(null)
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
+  const [previewTitle, setPreviewTitle] = useState('')
+  const [previewDescription, setPreviewDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<LinkSummary | null>(null)
@@ -84,6 +86,15 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
           host,
           investigationId,
           redirectMode: 'direct',
+          previewTitle,
+          previewDescription,
+          previewSource: (() => {
+            try {
+              return new URL(destination).hostname
+            } catch {
+              return ''
+            }
+          })(),
         }),
       })
 
@@ -121,6 +132,8 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
 
       setLabel('')
       setDestination('')
+      setPreviewTitle('')
+      setPreviewDescription('')
       setAlias('')
 
       await mutate()
@@ -231,6 +244,35 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Título da pré-visualização
+                </span>
+                <input
+                  value={previewTitle}
+                  onChange={(e) => setPreviewTitle(e.target.value)}
+                  maxLength={160}
+                  placeholder={label || 'Título que acompanha o link'}
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Descrição da pré-visualização
+                </span>
+                <input
+                  value={previewDescription}
+                  onChange={(e) => setPreviewDescription(e.target.value)}
+                  maxLength={320}
+                  placeholder="Descrição curta e transparente do destino"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
                   Alias personalizado
                 </span>
 
@@ -325,11 +367,17 @@ export function LinkForge({ investigationId: initialInvestigationId }: LinkForge
             </h2>
 
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Endereço que será partilhado.
+              Metadados editáveis e endereço que será partilhado.
             </p>
           </div>
 
-          <div className="p-4">
+          <div className="space-y-4 p-4">
+            <article className="rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-sm font-semibold text-foreground">{previewTitle || label || 'Título do link'}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{previewDescription || 'Descrição do destino'}</p>
+              <p className="mt-2 truncate font-mono text-[10px] text-primary">{(() => { try { return new URL(destination).hostname } catch { return 'dominio.example' } })()}</p>
+              <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">{destination || 'https://exemplo.org/caminho'}</p>
+            </article>
 
             <p className="font-mono text-[13px] leading-relaxed break-all text-foreground">
               {shareUrl}

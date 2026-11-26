@@ -20,8 +20,6 @@ import {
 import { and, count, desc, eq, gte } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
-import { getAuthorizedSession } from '@/lib/auth-guard'
-import { redirect } from 'next/navigation'
 import {
   captures,
   investigations,
@@ -87,7 +85,6 @@ function StatCard({
 export default async function LinkAnalysisPage({
   params,
 }: PageProps) {
-  if (!(await getAuthorizedSession())) redirect('/sign-in')
   const { id } = await params
 
   // Procurar link
@@ -112,7 +109,7 @@ export default async function LinkAnalysisPage({
     [recentResult],
     [botResult],
     [nonBotResult],
-    [investigation],
+    investigation,
     activity,
   ] = await Promise.all([
     db
@@ -421,13 +418,20 @@ export default async function LinkAnalysisPage({
               </div>
 
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">
-                  Estilo de pré-visualização
-                </span>
+                <span className="text-xs text-muted-foreground">Título do cartão</span>
+                <span className="max-w-[180px] truncate text-xs">{link.previewTitle || link.label}</span>
+              </div>
 
-                <span className="rounded-md bg-muted px-2 py-1 text-xs">
-                  {link.previewStyle}
-                </span>
+              {link.previewDescription && (
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Descrição do cartão</span>
+                  <p className="text-xs leading-relaxed">{link.previewDescription}</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">Domínio de destino</span>
+                <span className="max-w-[180px] truncate font-mono text-xs">{link.previewSource || new URL(link.destination).hostname}</span>
               </div>
 
               <div className="flex items-center justify-between gap-3">
