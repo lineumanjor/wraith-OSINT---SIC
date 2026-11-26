@@ -2,21 +2,16 @@ import { makeId, listInvestigations } from '@/lib/cases/queries'
 import { CASE_PRIORITY, CASE_STATUS } from '@/lib/cases/types'
 import { db } from '@/lib/db'
 import { investigations } from '@/lib/db/schema'
-import { requireApiAuth } from '@/lib/api-auth'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const cases = await listInvestigations()
   return Response.json({ cases })
 }
 
 export async function POST(request: Request) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
-  let body: { name?: string; description?: string; priority?: string; status?: string }
+  let body: { name?: string; objective?: string; description?: string; priority?: string; status?: string }
   try {
     body = await request.json()
   } catch {
@@ -31,13 +26,17 @@ export async function POST(request: Request) {
     return Response.json({ error: 'o nome da investigação excede 160 caracteres' }, { status: 400 })
   }
 
+  const objective = (body.objective ?? '').trim().slice(0, 1000)
+  if (objective.length < 5) {
+    return Response.json({ error: 'o objetivo precisa de pelo menos 5 caracteres' }, { status: 400 })
+  }
   const description = (body.description ?? '').trim().slice(0, 4000) || null
   const priority = CASE_PRIORITY.includes((body.priority ?? '') as never) ? body.priority! : 'normal'
   const status = CASE_STATUS.includes((body.status ?? '') as never) ? body.status! : 'open'
 
   const [created] = await db
     .insert(investigations)
-    .values({ id: makeId('case'), name, description, priority, status })
+    .values({ id: makeId('case'), name, objective, description, priority, status })
     .returning()
 
   return Response.json({ case: created }, { status: 201 })

@@ -96,10 +96,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="rounded-full border border-border px-2.5 py-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">v0.9 · lab</span>
           </div>
           <nav className="flex gap-1 overflow-x-auto border-t border-border px-3 py-2 lg:hidden" aria-label="Navegação principal">
-            {NAV.map((item) => { const active = isActive(pathname, item.href); const Icon = item.icon; return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cn('flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors', active ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:text-foreground')}><Icon className="size-3.5" aria-hidden="true" />{item.short}</Link> })}
+            {NAV.map((item) => { const active = isActive(pathname, item.href); const Icon = item.icon; return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors', active ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:text-foreground')}><Icon className="size-3.5" aria-hidden="true" />{item.short}</Link> })}
           </nav>
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   )

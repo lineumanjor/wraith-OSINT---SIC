@@ -1,7 +1,6 @@
 'use client'
 
 import { EntityPanel, FactPanel, LinkPanel } from '@/components/cases/case-panels'
-import { LinkForge } from '@/components/forge/link-forge'
 import { GeoMap, type MapPoint } from '@/components/geo-map'
 import { buttonVariants } from '@/components/ui/button'
 import {
@@ -20,7 +19,6 @@ import {
   ArrowLeft,
   CalendarClock,
   GitBranch,
-  Link2,
   Loader2,
   Terminal,
   Users,
@@ -35,7 +33,6 @@ const TABS = [
   { id: 'entidades', label: 'Entidades', icon: Users },
   { id: 'factos', label: 'Factos', icon: CalendarClock },
   { id: 'vinculos', label: 'Vínculos', icon: GitBranch },
-  { id: 'forge', label: 'Link Forge', icon: Link2 },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -146,8 +143,14 @@ export function CaseWorkspace({ caseId }: { caseId: string }) {
             {investigation.name}
           </h1>
 
-          {investigation.description && (
+          {investigation.objective && (
             <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Objetivo:</span>{' '}
+              {investigation.objective}
+            </p>
+          )}
+          {investigation.description && (
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground/80">
               {investigation.description}
             </p>
           )}
@@ -268,6 +271,50 @@ export function CaseWorkspace({ caseId }: { caseId: string }) {
           </div>
         </aside>
       </div>
+
+      <section className="mt-6" aria-label="Conteúdo da investigação">
+        <div
+          role="tablist"
+          aria-label="Secções da investigação"
+          className="flex flex-wrap gap-1 border-b border-border"
+        >
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`case-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls="case-tab-panel"
+              onClick={() => setTab(id)}
+              className={cn(
+                'inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs transition-colors',
+                tab === id
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon className="size-3.5" aria-hidden />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          id="case-tab-panel"
+          role="tabpanel"
+          aria-labelledby={`case-tab-${tab}`}
+          className="pt-4"
+        >
+          {tab === 'entidades' ? (
+            <EntityPanel caseId={caseId} detail={data} onChanged={mutate} />
+          ) : tab === 'factos' ? (
+            <FactPanel caseId={caseId} detail={data} onChanged={mutate} />
+          ) : (
+            <LinkPanel caseId={caseId} detail={data} onChanged={mutate} />
+          )}
+        </div>
+      </section>
     </div>
   )
 }

@@ -15,10 +15,12 @@ import { desc, eq, or, sql } from 'drizzle-orm'
 function serializeCapture(
   row: typeof captures.$inferSelect,
   linkLabel: string | null,
+  investigationId: string | null,
 ): Capture {
   return {
     ...row,
     linkLabel,
+    investigationId,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -31,14 +33,15 @@ export async function getCaptures(
     .select({
       capture: captures,
       linkLabel: links.label,
+      investigationId: links.investigationId,
     })
     .from(captures)
     .leftJoin(links, eq(captures.linkId, links.id))
     .orderBy(desc(captures.createdAt))
     .limit(limit)
 
-  return rows.map(({ capture, linkLabel }) =>
-    serializeCapture(capture, linkLabel),
+  return rows.map(({ capture, linkLabel, investigationId }) =>
+    serializeCapture(capture, linkLabel, investigationId),
   )
 }
 

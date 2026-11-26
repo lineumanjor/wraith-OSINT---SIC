@@ -1,5 +1,4 @@
 import { Analytics } from '@vercel/analytics/next'
-import { AuthSessionControl } from '@/components/auth-session-control'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
@@ -23,6 +22,9 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
   colorScheme: 'dark',
   themeColor: '#0b0a12',
 }
@@ -36,7 +38,6 @@ export default function RootLayout({
     <html lang="pt-BR" className={`dark ${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         {children}
-        <AuthSessionControl />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

@@ -89,12 +89,40 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-size: 16px;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
+    min-height: 100dvh;
     font-feature-settings: 'ss01', 'cv01';
   }
   ::selection {
     background: oklch(0.72 0.15 292 / 35%);
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    line-height: 1.5;
+  }
+
+  [class~='text-[9px]'],
+  [class~='text-[10px]'] {
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  [class~='text-[11px]'],
+  [class~='text-[12px]'] {
+    font-size: 0.8125rem;
+    line-height: 1.45;
   }
 }
 

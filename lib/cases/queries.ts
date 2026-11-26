@@ -22,6 +22,7 @@ function serializeInvestigation(row: typeof investigations.$inferSelect): Invest
   return {
     id: row.id,
     name: row.name,
+    objective: row.objective,
     description: row.description,
     status: row.status as CaseStatus,
     priority: row.priority as CasePriority,

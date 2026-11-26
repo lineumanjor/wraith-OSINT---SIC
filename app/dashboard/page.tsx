@@ -1,8 +1,6 @@
 import { AppShell } from '@/components/app-shell'
 import { Dashboard } from '@/components/dashboard/dashboard'
 import { getDashboardData } from '@/lib/queries'
-import { getAuthorizedSession } from '@/lib/auth-guard'
-import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +11,6 @@ export const metadata: Metadata = {
 }
 
 export default async function DashboardPage() {
-  if (!(await getAuthorizedSession())) redirect('/sign-in')
   const data = await getDashboardData()
 
   return (

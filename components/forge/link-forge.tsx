@@ -27,7 +27,8 @@ const fetcher = <T,>(url: string) =>
     return res.json() as Promise<T>
   })
 
-export function LinkForge({ investigationId }: LinkForgeProps) {
+export function LinkForge({ investigationId: initialInvestigationId }: LinkForgeProps) {
+  const [investigationId, setInvestigationId] = useState(initialInvestigationId)
   const endpoint = investigationId
     ? `/api/links?investigationId=${encodeURIComponent(investigationId)}`
     : '/api/links'
@@ -41,6 +42,8 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
   const [host, setHost] = useState<string | null>(null)
   const [label, setLabel] = useState('')
   const [destination, setDestination] = useState('')
+  const [previewTitle, setPreviewTitle] = useState('')
+  const [previewDescription, setPreviewDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<LinkSummary | null>(null)
@@ -49,6 +52,8 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
   useEffect(() => {
     setOrigin(window.location.origin)
+    const idFromUrl = new URLSearchParams(window.location.search).get('investigationId')
+    if (idFromUrl) setInvestigationId(idFromUrl)
   }, [])
 
   async function copy(value: string) {
@@ -81,6 +86,15 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
           host,
           investigationId,
           redirectMode: 'direct',
+          previewTitle,
+          previewDescription,
+          previewSource: (() => {
+            try {
+              return new URL(destination).hostname
+            } catch {
+              return ''
+            }
+          })(),
         }),
       })
 
@@ -118,6 +132,8 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
       setLabel('')
       setDestination('')
+      setPreviewTitle('')
+      setPreviewDescription('')
       setAlias('')
 
       await mutate()
@@ -168,13 +184,13 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
   const links = data?.links ?? []
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-5">
 
       {/* CRIAÇÃO DE LINKS */}
 
       <form
         onSubmit={handleSubmit}
-        className="lg:col-span-3"
+        className="min-w-0 xl:col-span-3"
       >
         <div className="rounded-xl border border-border bg-card">
 
@@ -190,7 +206,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
           <div className="space-y-4 p-4">
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -203,7 +219,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   required
                   maxLength={120}
                   placeholder="Operação Vértice — onda 1"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
                 />
               </label>
 
@@ -218,13 +234,42 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                   required
                   type="url"
                   placeholder="https://exemplo.org/documento"
-                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 font-mono text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-xs"
                 />
               </label>
 
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Título da pré-visualização
+                </span>
+                <input
+                  value={previewTitle}
+                  onChange={(e) => setPreviewTitle(e.target.value)}
+                  maxLength={160}
+                  placeholder={label || 'Título que acompanha o link'}
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
+                />
+              </label>
+
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+                  Descrição da pré-visualização
+                </span>
+                <input
+                  value={previewDescription}
+                  onChange={(e) => setPreviewDescription(e.target.value)}
+                  maxLength={320}
+                  placeholder="Descrição curta e transparente do destino"
+                  className="mt-1.5 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-base text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-2 focus:ring-primary/20 focus:outline-none sm:text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="grid min-w-0 gap-4 md:grid-cols-2">
 
               <label className="block">
                 <span className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
@@ -243,7 +288,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
                     maxLength={63}
                     placeholder="operacao-xyz"
                     aria-label="Alias personalizado"
-                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2 font-mono text-base text-foreground placeholder:text-muted-foreground/50 focus:outline-none sm:text-xs"
                   />
 
                 </div>
@@ -312,7 +357,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
       {/* PRÉ-VISUALIZAÇÃO */}
 
-      <div className="space-y-4 lg:col-span-2">
+      <div className="min-w-0 space-y-4 xl:col-span-2">
 
         <div className="rounded-xl border border-border bg-card">
 
@@ -322,11 +367,17 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
             </h2>
 
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Endereço que será partilhado.
+              Metadados editáveis e endereço que será partilhado.
             </p>
           </div>
 
-          <div className="p-4">
+          <div className="space-y-4 p-4">
+            <article className="rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-sm font-semibold text-foreground">{previewTitle || label || 'Título do link'}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{previewDescription || 'Descrição do destino'}</p>
+              <p className="mt-2 truncate font-mono text-[10px] text-primary">{(() => { try { return new URL(destination).hostname } catch { return 'dominio.example' } })()}</p>
+              <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">{destination || 'https://exemplo.org/caminho'}</p>
+            </article>
 
             <p className="font-mono text-[13px] leading-relaxed break-all text-foreground">
               {shareUrl}
@@ -397,7 +448,7 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
       {/* LINKS CRIADOS */}
 
-      <div className="lg:col-span-5">
+      <div className="min-w-0 xl:col-span-5">
 
         <div className="mb-2 flex items-center justify-between">
 

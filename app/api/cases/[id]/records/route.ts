@@ -3,7 +3,6 @@ import { ENTITY_KINDS } from '@/lib/cases/types'
 import { db } from '@/lib/db'
 import { entities, entityLinks, facts } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
-import { requireApiAuth } from '@/lib/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -35,8 +34,6 @@ function toNumber(value: unknown): number | null {
 }
 
 export async function POST(request: Request, { params }: Params) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { id } = await params
 
   let body: Body
@@ -153,8 +150,6 @@ export async function POST(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { id } = await params
   const url = new URL(request.url)
   const recordType = url.searchParams.get('recordType')

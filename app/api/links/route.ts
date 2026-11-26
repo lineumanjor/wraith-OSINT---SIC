@@ -10,7 +10,6 @@ import type {
   RedirectMode,
 } from '@/lib/spectre/types'
 import { desc, eq, sql } from 'drizzle-orm'
-import { requireApiAuth } from '@/lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,8 +99,6 @@ function clean(value: unknown, max: number): string | null {
  * Lista apenas os links associados a uma investigação.
  */
 export async function GET(request: Request) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   const { searchParams } = new URL(request.url)
 
   const investigationId = searchParams.get('investigationId')
@@ -168,8 +165,6 @@ export async function GET(request: Request) {
  * Cria um novo link.
  */
 export async function POST(request: Request) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   let body: Record<string, unknown>
 
   try {
@@ -325,8 +320,6 @@ export async function POST(request: Request) {
  * Activa ou desativa um link.
  */
 export async function PATCH(request: Request) {
-  const denied = await requireApiAuth()
-  if (denied) return denied
   let body: {
     id?: string
     active?: boolean
