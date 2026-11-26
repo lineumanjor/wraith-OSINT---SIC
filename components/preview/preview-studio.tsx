@@ -4,7 +4,7 @@ import { PREVIEW_STYLES } from '@/components/ghost-preview'
 import type { PreviewStyle } from '@/lib/spectre/types'
 import { cn } from '@/lib/utils'
 import { Smartphone, Monitor, MapPin, ShieldCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const PRESETS: Record<PreviewStyle, { title: string; description: string; source: string }> = {
   messaging: {
@@ -34,6 +34,11 @@ export function PreviewStudio() {
     '<article><h2>{{title}}</h2><p>{{description}}</p><small>{{source}}</small></article>',
   )
   const [locationStatus, setLocationStatus] = useState('A localização não foi solicitada.')
+  const [investigationId, setInvestigationId] = useState('')
+
+  useEffect(() => {
+    setInvestigationId(new URLSearchParams(window.location.search).get('investigationId') ?? '')
+  }, [])
 
   const safeTemplate = useMemo(() => {
     if (typeof DOMParser === 'undefined') return ''
@@ -82,7 +87,13 @@ export function PreviewStudio() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-5">
+    <div className="flex flex-col gap-4">
+      {investigationId && (
+        <p className="rounded-lg border border-primary/30 bg-primary/[0.06] px-3 py-2 font-mono text-[11px] text-muted-foreground">
+          Dossiê selecionado: <span className="text-foreground">{investigationId}</span> · estúdio de pré-visualização, sem publicação ou recolha de dados.
+        </p>
+      )}
+      <div className="grid gap-4 lg:grid-cols-5">
       <div className="space-y-4 lg:col-span-2">
         <div className="rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
@@ -290,6 +301,7 @@ export function PreviewStudio() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

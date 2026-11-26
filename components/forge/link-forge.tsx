@@ -27,7 +27,8 @@ const fetcher = <T,>(url: string) =>
     return res.json() as Promise<T>
   })
 
-export function LinkForge({ investigationId }: LinkForgeProps) {
+export function LinkForge({ investigationId: initialInvestigationId }: LinkForgeProps) {
+  const [investigationId, setInvestigationId] = useState(initialInvestigationId)
   const endpoint = investigationId
     ? `/api/links?investigationId=${encodeURIComponent(investigationId)}`
     : '/api/links'
@@ -49,6 +50,8 @@ export function LinkForge({ investigationId }: LinkForgeProps) {
 
   useEffect(() => {
     setOrigin(window.location.origin)
+    const idFromUrl = new URLSearchParams(window.location.search).get('investigationId')
+    if (idFromUrl) setInvestigationId(idFromUrl)
   }, [])
 
   async function copy(value: string) {
