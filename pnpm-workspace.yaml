@@ -3,3 +3,29 @@ pmOnFail: ignore
 minimumReleaseAgeExclude:
   - '@next/*'
   - next
+
+overrides:
+  baseline-browser-mapping@>=2.0.0 <2.11.0: ^2.11.0
+  brace-expansion@>=3.0.0 <5.0.7: ^5.0.7
+  brace-expansion@>=4.0.0 <5.0.10: ^5.0.10
+  brace-expansion@>=4.0.0 <5.0.11: ^5.0.11
+  brace-expansion@>=4.0.0 <5.0.12: ^5.0.12
+  brace-expansion@>=4.0.0 <5.0.8: ^5.0.8
+  brace-expansion@>=4.0.0 <5.0.9: ^5.0.9
+  browserslist@<=4.28.6: ^4.28.7
+  ip-address@<=10.3.0: ^10.3.1
+  ip-address@<=10.5.0: ^10.5.1
+  ip-address@<=10.7.0: ^10.7.1
+  ip-address@<=10.7.3: ^10.7.4
+  ip-address@>=10.1.1 <=10.2.0: ^10.2.1
+  ip-address@>=10.1.1 <=10.2.1: ^10.2.2
+  ip-address@>=10.2.0 <=10.5.0: ^10.5.1
+  minimatch@>=7.0.0 <11.0.1: ^11.0.1
+  nanoid@<3.3.12: ^3.3.12
+  nanoid@<3.3.16: ^3.3.16
+  nanoid@<3.3.18: ^3.3.18
+  postcss@<8.5.10: ^8.5.10
+  postcss@<=8.5.11: ^8.5.12
+  postcss@<=8.5.17: ^8.5.18
+  postcss@<=8.5.22: ^8.5.23
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
